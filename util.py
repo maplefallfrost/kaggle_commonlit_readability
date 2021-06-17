@@ -1,6 +1,8 @@
 import argparse
+from typing import OrderedDict
 import yaml
 import re
+import torch
 
 class AverageMeter(object):
     def __init__(self):
@@ -82,3 +84,15 @@ def load_config(config_path):
         config = yaml.load(fp, Loader=loader)['key']
     config = argparse.Namespace(**config)
     return config
+
+
+def load_state_dict(model_save_path):
+    state_dict = torch.load(model_save_path)
+    key = next(iter(state_dict.keys()))
+    if key.find("module") != -1:
+        new_state_dict = OrderedDict()
+        for k, v in state_dict.items():
+            name = k[7:]
+            new_state_dict[name] = v
+        return new_state_dict
+    return state_dict

@@ -28,7 +28,7 @@ class RobertaBase(nn.Module):
             output_hidden_states=True, 
             return_dict=True)
         hidden_states = output_dict['hidden_states']
-        if self.embedding_method == 'last':
+        if self.embedding_method == 'last-avg':
             last_hidden_states = hidden_states[-1]
             avg_last_hidden_states = torch.mean(last_hidden_states, dim=1)
             return avg_last_hidden_states

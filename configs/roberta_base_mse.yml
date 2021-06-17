@@ -3,7 +3,7 @@ key:
   rng_seed: 0
   model_name: "roberta-base"
   embedding_method: "last"
-  checkpoint_dir: "./checkpoints/roberta_base_0"
+  checkpoint_dir: "./checkpoints/roberta_base_mse"
 
   train_method: "vanilla"
   scheduler_method: 'cosine'

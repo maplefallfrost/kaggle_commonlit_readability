@@ -11,7 +11,7 @@ import pandas as pd
 from torch.utils.data.dataloader import DataLoader
 from sklearn.model_selection import KFold
 from pathlib import Path
-from util import df_to_dict, to_device, load_config
+from util import df_to_dict, to_device, load_config, load_state_dict
 from dataset import Collator, CommonLitDataset
 from constant import model_name_to_model
 from transformers import AutoTokenizer
@@ -40,10 +40,10 @@ def k_fold_train(config):
     """
     config: argparse.Namespace
     """
+    setup_seed(config.rng_seed)
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     if config.gpu.find(",") != -1:
         device_ids = [int(x) for x in config.gpu.split(",")]
-    setup_seed(config.rng_seed)
     # Note that the setting of commonlit dataset should be always put in the first in the config.yml.
     commonlit_dataset_property = config.dataset_properties[0]
     df = pd.read_csv(commonlit_dataset_property["train_data_path"])
@@ -119,9 +119,11 @@ def k_fold_eval(config):
         model = model_name_to_model[config.model_name](
             config.dataset_properties,
             config.embedding_method
-        )
+        ).to(device)
 
-        trained_state_dict = torch.load(os.path.join(config.checkpoint_dir, f"model_{fold}.th"))
+        # trained_state_dict = torch.load(os.path.join(config.checkpoint_dir, f"model_{fold}.th"))
+        model_save_path = os.path.join(config.checkpoint_dir, f"model_{fold}.th")
+        trained_state_dict = load_state_dict(model_save_path)
         model.load_state_dict(trained_state_dict)
 
         evaluator = name_to_evaluator[commonlit_dataset_property['evaluator']](device)
@@ -137,7 +139,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="kaggle CommonLit competetion")
     parser.add_argument("--mode", type=str, required=True)
     parser.add_argument("--config_path", type=Path, required=True)
-    parser.add_argument("--gpu", type=str, default=0)
+    parser.add_argument("--gpu", type=str, default="0")
     args = parser.parse_args()
     config = load_config(args.config_path)
     config.gpu = args.gpu
