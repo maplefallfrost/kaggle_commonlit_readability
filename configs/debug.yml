@@ -2,12 +2,12 @@ key:
   k_fold: 5
   rng_seed: 0
   model_name: "roberta-base"
-  embedding_method: "last"
+  embedding_method: "last-avg"
   checkpoint_dir: "./checkpoints/debug"
 
   train_method: "vanilla"
   scheduler_method: 'cosine'
-  batch_size: 16
+  batch_size: 32
   max_epoch: 5
   weight_decay: 0.01
   optimizer_name: "AdamW"

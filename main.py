@@ -70,7 +70,8 @@ def k_fold_train(config):
             batch_size=config.batch_size,
             shuffle=True,
             collate_fn=Collator(tokenizer.pad_token_id),
-            drop_last=True)
+            drop_last=True,
+            num_workers=4)
            
         valid_loader = DataLoader(valid_dataset,
             batch_size=config.batch_size,
@@ -144,6 +145,7 @@ if __name__ == '__main__':
     config = load_config(args.config_path)
     config.gpu = args.gpu
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
     if args.mode == 'train':
         k_fold_train(config)
