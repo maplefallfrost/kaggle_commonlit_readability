@@ -108,6 +108,7 @@ class Trainer:
         global_step, best_valid_metric = 0, np.inf
         for epoch in range(self.config.max_epoch):
             for collate_batch in tqdm(train_loader):
+                global_step += 1
                 to_device(collate_batch, self.device)
 
                 optimizer.zero_grad()
@@ -121,17 +122,17 @@ class Trainer:
                 losses.update(loss.item(), labels.size(0))
                 if global_step % dataset_property["log_every"] == 0:
                     fitlog.add_loss(loss.item(), name="loss", step=global_step)
-                global_step += 1
 
-            valid_metric = evaluator.eval(model, valid_loader, dataset_property)
-            fitlog.add_metric({"valid": {dataset_property['evaluator']: valid_metric}}, step=epoch)
-            if valid_metric < best_valid_metric:
-                best_valid_metric = valid_metric
-                fitlog.add_best_metric({"valid": {dataset_property['evaluator']: valid_metric}})
-                torch.save(model.state_dict(), os.path.join(self.model_save_dir, f"model_{self.fold}.th"))
-        
+                if global_step % dataset_property["eval_every"] == 0:
+                    valid_metric = evaluator.eval(model, valid_loader, dataset_property)
+                    fitlog.add_metric({"valid": {dataset_property['evaluator']: valid_metric}}, step=global_step//dataset_property["eval_every"])
+                    if valid_metric < best_valid_metric:
+                        best_valid_metric = valid_metric
+                        fitlog.add_best_metric({"valid": {dataset_property['evaluator']: valid_metric}})
+                        torch.save(model.state_dict(), os.path.join(self.model_save_dir, f"model_{self.fold}.th"))
+
+            torch.cuda.empty_cache()
+
         print(f"best validation metric: {best_valid_metric}")
         del model, optimizer, scheduler, train_loader, valid_loader
-        torch.cuda.empty_cache()
         gc.collect()
-
