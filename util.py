@@ -56,7 +56,7 @@ def df_to_dict(df, tokenizer, text_column):
 
 def to_device(collate_batch, device):
     for key in collate_batch:
-        collate_batch[key] = collate_batch[key].to(device)
+        collate_batch[key] = collate_batch[key].to(device, non_blocking=True)
     
 
 def load_config(config_path):
