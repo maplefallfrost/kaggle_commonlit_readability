@@ -18,6 +18,7 @@ from transformers import AutoTokenizer
 from trainer import Trainer
 from constant import name_to_evaluator
 from models.data_parallel import DataParallelWrapper
+from data_loader import DataLoaderX
 
 
 # fitlog.commit(__file__)             # auto commit your codes
@@ -47,13 +48,17 @@ def k_fold_train(config):
     # Note that the setting of commonlit dataset should be always put in the first in the config.yml.
     commonlit_dataset_property = config.dataset_properties[0]
     df = pd.read_csv(commonlit_dataset_property["train_data_path"])
-    n = df.shape[0]
 
     kf = KFold(n_splits=config.k_fold, shuffle=True, random_state=config.rng_seed)
     tokenizer = AutoTokenizer.from_pretrained(config.model_name)
     tokenizer.save_pretrained(config.checkpoint_dir)
 
     dict_data = df_to_dict(df, tokenizer, text_column=commonlit_dataset_property["text_column"])
+
+    if os.path.exists(config.checkpoint_dir):
+        flag = input(f"{config.checkpoint_dir} exists. Do you want to overwrite it?(y/n)")
+        if flag != 'y':
+            return
 
     os.makedirs(config.checkpoint_dir, exist_ok=True)
 
@@ -66,22 +71,23 @@ def k_fold_train(config):
             dataset_name=commonlit_dataset_property["name"],
             subset_index=valid_index)
 
-        train_loader = DataLoader(train_dataset,
+        train_loader = DataLoaderX(
+            dataset=train_dataset,
             batch_size=config.batch_size,
             shuffle=True,
             collate_fn=Collator(tokenizer.pad_token_id),
+            pin_memory=True,
             drop_last=True,
             num_workers=4)
            
-        valid_loader = DataLoader(valid_dataset,
+        valid_loader = DataLoaderX(
+            dataset=valid_dataset,
             batch_size=config.batch_size,
             shuffle=False,
+            pin_memory=True,
             collate_fn=Collator(tokenizer.pad_token_id))
         
-        model = model_name_to_model[config.model_name](
-            config.dataset_properties,
-            config.embedding_method
-        ).to(device)
+        model = model_name_to_model[config.model_name](config).to(device)
         if config.gpu.find(",") != -1:
             model = DataParallelWrapper(model, device_ids=device_ids)
 
@@ -122,7 +128,6 @@ def k_fold_eval(config):
             config.embedding_method
         ).to(device)
 
-        # trained_state_dict = torch.load(os.path.join(config.checkpoint_dir, f"model_{fold}.th"))
         model_save_path = os.path.join(config.checkpoint_dir, f"model_{fold}.th")
         trained_state_dict = load_state_dict(model_save_path)
         model.load_state_dict(trained_state_dict)
