@@ -123,10 +123,7 @@ def k_fold_eval(config):
             shuffle=False,
             collate_fn=Collator(tokenizer.pad_token_id))
         
-        model = model_name_to_model[config.model_name](
-            config.dataset_properties,
-            config.embedding_method
-        ).to(device)
+        model = model_name_to_model[config.model_name](config).to(device)
 
         model_save_path = os.path.join(config.checkpoint_dir, f"model_{fold}.th")
         trained_state_dict = load_state_dict(model_save_path)
