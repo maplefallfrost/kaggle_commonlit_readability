@@ -4,22 +4,27 @@ from torch._C import Value
 import torch.nn as nn
 from transformers import AutoConfig, AutoModelForMaskedLM
 from models.util import create_last_layers
+from modules.weighted_layer_pooling import WeightedLayerPooling
 
 class RobertaBase(nn.Module):
-    def __init__(self, dataset_properties, embedding_method):
+    def __init__(self, config):
         """
-        dataset_properties: list[dict].
-            each dict contain keys 'name' and 'num_classes' for building last fc layers
-        embedding_method: str. (last/first-last/cls)
-            decide the method of how to compute the last embedding.
+        config: argparse.Namespace.
         """
         super().__init__()
-        self.embedding_method = embedding_method
+        self.embedding_method = config.embedding_method
+        dataset_properties = config.dataset_properties
         model_name = "roberta-base"
-        config = AutoConfig.from_pretrained(model_name)
-        self.roberta_base = AutoModelForMaskedLM.from_pretrained(model_name, config=config)
-        last_layers = create_last_layers(dataset_properties, config.hidden_size)
+        model_config = AutoConfig.from_pretrained(model_name)
+        self.roberta_base = AutoModelForMaskedLM.from_pretrained(model_name, config=model_config)
+        last_layers = create_last_layers(dataset_properties, model_config.hidden_size)
         self.last_layers = nn.ModuleDict({name: layer for name, layer in last_layers.items()})
+
+        if self.embedding_method == 'weight-pool':
+            self.output_emb_layer = WeightedLayerPooling(
+                model_config.num_hidden_layers,
+                layer_start=config.embedding_layer_start,
+                layer_weights=None)
     
     def _get_last_embedding(self, token_ids, **kwargs):
         attention_mask = kwargs.get('attention_mask', None)
@@ -32,6 +37,9 @@ class RobertaBase(nn.Module):
             last_hidden_states = hidden_states[-1]
             avg_last_hidden_states = torch.mean(last_hidden_states, dim=1)
             return avg_last_hidden_states
+        elif self.embedding_method == 'weight-pool':
+            last_emb = self.output_emb_layer(hidden_states)
+            return last_emb
         else:
             raise ValueError(f"Unsupported embedding_method {self.embedding_method}.")
 
