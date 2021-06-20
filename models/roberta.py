@@ -1,7 +1,7 @@
-from logging import raiseExceptions
 import torch
-from torch._C import Value
 import torch.nn as nn
+import os
+
 from transformers import AutoConfig, AutoModelForMaskedLM
 from models.util import create_last_layers
 from modules.weighted_layer_pooling import WeightedLayerPooling
@@ -14,9 +14,21 @@ class RobertaBase(nn.Module):
         super().__init__()
         self.embedding_method = config.embedding_method
         dataset_properties = config.dataset_properties
-        model_name = "roberta-base"
-        model_config = AutoConfig.from_pretrained(model_name)
-        self.roberta_base = AutoModelForMaskedLM.from_pretrained(model_name, config=model_config)
+        if hasattr(config, "pretrained_dir"):
+            if not os.path.exists(config.pretrained_dir):
+                raise ValueError(f"pretrained dir {config.pretrained_dir} not exist")
+
+            print(f"load from pretrained model from {config.pretrained_dir}")
+            model_config_path = os.path.join(config.pretrained_dir, "config.json")
+            model_config = AutoConfig.from_pretrained(model_config_path)
+            self.roberta_base = AutoModelForMaskedLM.from_config(model_config)
+            pretrained_model_path = os.path.join(config.pretrained_dir, "pytorch_model.bin")
+            pretrained_model = torch.load(pretrained_model_path)
+            self.roberta_base.load_state_dict(pretrained_model)
+        else:
+            model_config = AutoConfig.from_pretrained(config.model_name)
+            self.roberta_base = AutoModelForMaskedLM.from_pretrained(config.model_name, config=model_config)
+
         last_layers = create_last_layers(dataset_properties, model_config.hidden_size)
         self.last_layers = nn.ModuleDict({name: layer for name, layer in last_layers.items()})
 

@@ -1,0 +1,1 @@
+python run_mlm_no_trainer.py --train_file=../data/train.csv --validation_file=../data/train.csv --model_name_or_path=roberta-base --output_dir=checkpoints/pretrained/roberta_base --per_device_train_batch_size=4

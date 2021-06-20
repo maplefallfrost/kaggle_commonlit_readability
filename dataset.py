@@ -54,7 +54,7 @@ class CommonLitDataset:
         index = self.subset_index[index]
 
         sample = {
-            f'{self.dataset_name}_token_ids': self.dict_data['excerpt'][index],
+            f'{self.dataset_name}_token_ids': self.dict_data['text'][index],
             f'{self.dataset_name}_label': self.dict_data['target'][index],
             f'{self.dataset_name}_std': self.dict_data['standard_error'][index]
         }

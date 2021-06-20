@@ -111,6 +111,9 @@ def k_fold_eval(config):
 
     dict_data = df_to_dict(df, tokenizer, text_column=commonlit_dataset_property["text_column"])
 
+    # evaluation doesn't need to load from pretrained
+    delattr(config, "pretrained_dir")
+
     k_fold_metrics = []
     for fold, (train_index, valid_index) in enumerate(kf.split(df)):
         print(f"fold {fold} start")
