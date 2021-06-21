@@ -1,3 +1,4 @@
+import sys
 import torch
 import fitlog
 import os
@@ -14,7 +15,7 @@ from transformers import (
     get_linear_schedule_with_warmup,
     get_cosine_schedule_with_warmup
 )
-from constant import name_to_loss, name_to_evaluator
+from constant import name_to_evaluator
 from util import AverageMeter
 
 
@@ -92,7 +93,7 @@ class Trainer:
         This training method does the vanilla training method of single dataset.
         Input
         model: nn.Module.
-        train_loaders: list[DataLoader].
+        train_loader: DataLoader.
         valid_loader: DataLoader.
         dataset_property: dict.
         """
@@ -100,8 +101,6 @@ class Trainer:
         model.train()
         optimizer = make_optimizer(model, self.config)
         scheduler = make_scheduler(optimizer, self.config)
-        loss_fn = name_to_loss[dataset_property['loss_name']]
-        dataset_name = dataset_property['name']
         evaluator = name_to_evaluator[dataset_property['evaluator']](self.device)
         losses = AverageMeter()
 
@@ -112,27 +111,25 @@ class Trainer:
                 to_device(collate_batch, self.device)
 
                 optimizer.zero_grad()
-                output = model(collate_batch)
-                labels = collate_batch[f"{dataset_name}_label"]
-                loss = loss_fn(output, labels)
+                _, loss = model(collate_batch, dataset_property=dataset_property)
                 loss.backward()
                 optimizer.step()
-
                 scheduler.step()
-                losses.update(loss.item(), labels.size(0))
+
+                batch_size = next(iter(collate_batch.values())).size(0)
+                losses.update(loss.item(), batch_size)
                 if global_step % dataset_property["log_every"] == 0:
-                    fitlog.add_loss(loss.item(), name="loss", step=global_step)
+                    fitlog.add_loss(loss.item(), name=f"loss_{self.fold}", step=global_step)
 
                 if global_step % dataset_property["eval_every"] == 0:
                     valid_metric = evaluator.eval(model, valid_loader, dataset_property)
-                    fitlog.add_metric({"valid": {dataset_property['evaluator']: valid_metric}}, step=global_step//dataset_property["eval_every"])
+                    fitlog.add_metric({f"valid_{self.fold}": {dataset_property['evaluator']: valid_metric}}, step=global_step//dataset_property["eval_every"])
                     if valid_metric < best_valid_metric:
                         best_valid_metric = valid_metric
-                        fitlog.add_best_metric({"valid": {dataset_property['evaluator']: valid_metric}})
+                        fitlog.add_best_metric({f"valid_{self.fold}": {dataset_property['evaluator']: valid_metric}})
                         torch.save(model.state_dict(), os.path.join(self.model_save_dir, f"model_{self.fold}.th"))
 
-            torch.cuda.empty_cache()
-
         print(f"best validation metric: {best_valid_metric}")
+        torch.cuda.empty_cache()
         del model, optimizer, scheduler, train_loader, valid_loader
         gc.collect()

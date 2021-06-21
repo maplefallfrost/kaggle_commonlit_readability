@@ -56,7 +56,7 @@ class CommonLitDataset:
         sample = {
             f'{self.dataset_name}_token_ids': self.dict_data['text'][index],
             f'{self.dataset_name}_label': self.dict_data['target'][index],
-            f'{self.dataset_name}_std': self.dict_data['standard_error'][index]
+            f'{self.dataset_name}_standard_error': self.dict_data['standard_error'][index]
         }
         return sample
     
