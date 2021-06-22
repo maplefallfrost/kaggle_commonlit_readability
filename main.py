@@ -21,7 +21,7 @@ from models.data_parallel import DataParallelWrapper
 from data_loader import DataLoaderX
 
 
-# fitlog.commit(__file__)             # auto commit your codes
+fitlog.commit(__file__)             # auto commit your codes
 fitlog.set_log_dir('logs/')         # set the logging directory
 fitlog.add_hyper_in_file(__file__)  # record your hyper-parameters
 
