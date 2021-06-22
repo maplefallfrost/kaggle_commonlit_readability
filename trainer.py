@@ -18,9 +18,47 @@ from transformers import (
 from constant import name_to_evaluator
 from util import AverageMeter
 
+def get_optimizer_grouped_parameters(
+    model, model_type, 
+    learning_rate, weight_decay, 
+    layerwise_learning_rate_decay
+):
+    no_decay = ["bias", "LayerNorm.weight"]
+    # initialize lr for task specific layer
+    optimizer_grouped_parameters = [
+        {
+            "params": [p for n, p in model.named_parameters() if "classifier" in n or "pooler" in n],
+            "weight_decay": 0.0,
+            "lr": learning_rate,
+        },
+    ]
+    # initialize lrs for every layer
+    backbone = model.backbone
+    layers = [getattr(backbone, model_type).embeddings] + list(getattr(backbone, model_type).encoder.layer)
+    layers.reverse()
+    lr = learning_rate
+    for layer in layers:
+        lr *= layerwise_learning_rate_decay
+        optimizer_grouped_parameters += [
+            {
+                "params": [p for n, p in layer.named_parameters() if not any(nd in n for nd in no_decay)],
+                "weight_decay": weight_decay,
+                "lr": lr,
+            },
+            {
+                "params": [p for n, p in layer.named_parameters() if any(nd in n for nd in no_decay)],
+                "weight_decay": 0.0,
+                "lr": lr,
+            },
+        ]
+    return optimizer_grouped_parameters
+
 
 def make_optimizer(model, config):
-    optimizer_grouped_parameters = model.parameters()
+    model_type = config.model_name.split("-")[0]
+    optimizer_grouped_parameters = get_optimizer_grouped_parameters(
+        model, model_type, config.lr, config.weight_decay, config.layerwise_lr_decay
+    )
     kwargs = {
         'lr': config.lr,
         'weight_decay': config.weight_decay

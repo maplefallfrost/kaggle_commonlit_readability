@@ -7,7 +7,7 @@ from models.util import create_last_layers
 from modules.weighted_layer_pooling import WeightedLayerPooling
 from loss import LossWrapper
 
-class RobertaBase(nn.Module):
+class Roberta(nn.Module):
     def __init__(self, config):
         """
         config: argparse.Namespace.
@@ -22,13 +22,13 @@ class RobertaBase(nn.Module):
             print(f"load from pretrained model from {config.pretrained_dir}")
             model_config_path = os.path.join(config.pretrained_dir, "config.json")
             model_config = AutoConfig.from_pretrained(model_config_path)
-            self.roberta_base = AutoModelForMaskedLM.from_config(model_config)
+            self.backbone = AutoModelForMaskedLM.from_config(model_config)
             pretrained_model_path = os.path.join(config.pretrained_dir, "pytorch_model.bin")
             pretrained_model = torch.load(pretrained_model_path)
-            self.roberta_base.load_state_dict(pretrained_model)
+            self.backbone.load_state_dict(pretrained_model)
         else:
             model_config = AutoConfig.from_pretrained(config.model_name)
-            self.roberta_base = AutoModelForMaskedLM.from_pretrained(config.model_name, config=model_config)
+            self.backbone = AutoModelForMaskedLM.from_pretrained(config.model_name, config=model_config)
 
         last_layers = create_last_layers(dataset_properties, model_config.hidden_size)
         self.last_layers = nn.ModuleDict({name: layer for name, layer in last_layers.items()})
@@ -41,7 +41,7 @@ class RobertaBase(nn.Module):
     
     def _get_last_embedding(self, token_ids, **kwargs):
         attention_mask = kwargs.get('attention_mask', None)
-        output_dict = self.roberta_base(token_ids, 
+        output_dict = self.backbone(token_ids, 
             attention_mask=attention_mask, 
             output_hidden_states=True, 
             return_dict=True)
