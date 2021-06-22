@@ -1,5 +1,8 @@
 import torch
 
+# use in distribution loss to bound std in the training set
+std_lower_bound = 0.4
+
 class LossWrapper:
     def __init__(self, loss_name):
         self.loss_name = loss_name
@@ -21,9 +24,11 @@ class LossWrapper:
             pred_mean = output_dict[label_name].squeeze()
             standard_error_name = "_".join([dataset_name, "standard_error"])
             pred_std = output_dict[standard_error_name].squeeze()
-            p = torch.distributions.Normal(pred_mean, pred_std)
+            pred_std = torch.exp(pred_std)
             ground_truth_mean = collate_batch[label_name].squeeze()
             ground_truth_std = collate_batch[standard_error_name].squeeze()
+            ground_truth_std[ground_truth_std < std_lower_bound] = std_lower_bound
+            p = torch.distributions.Normal(pred_mean, ground_truth_std)
             q = torch.distributions.Normal(ground_truth_mean, ground_truth_std)
             dist_loss = torch.distributions.kl_divergence(p, q)
             return torch.mean(dist_loss)
