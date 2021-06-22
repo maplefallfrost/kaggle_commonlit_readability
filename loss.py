@@ -28,7 +28,7 @@ class LossWrapper:
             ground_truth_mean = collate_batch[label_name].squeeze()
             ground_truth_std = collate_batch[standard_error_name].squeeze()
             ground_truth_std[ground_truth_std < std_lower_bound] = std_lower_bound
-            p = torch.distributions.Normal(pred_mean, ground_truth_std)
+            p = torch.distributions.Normal(pred_mean, pred_std)
             q = torch.distributions.Normal(ground_truth_mean, ground_truth_std)
             dist_loss = torch.distributions.kl_divergence(p, q)
             return torch.mean(dist_loss)
