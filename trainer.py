@@ -83,10 +83,10 @@ class Trainer:
         valid_loader: DataLoader.
         """
         if self.config.train_method == 'vanilla':
-            self._vanilla_train(model,
-            train_loaders[0],
-            valid_loader, 
-            self.config.dataset_properties[0])
+            return self._vanilla_train(model,
+                        train_loaders[0],
+                        valid_loader, 
+                        self.config.dataset_properties[0])
     
     def _vanilla_train(self, model, train_loader, valid_loader, dataset_property):
         """
@@ -133,3 +133,5 @@ class Trainer:
         torch.cuda.empty_cache()
         del model, optimizer, scheduler, train_loader, valid_loader
         gc.collect()
+
+        return best_valid_metric
