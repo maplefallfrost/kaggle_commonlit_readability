@@ -59,18 +59,14 @@ def make_optimizer(model, config):
     optimizer_grouped_parameters = get_optimizer_grouped_parameters(
         model, model_type, config.lr, config.weight_decay, config.layerwise_lr_decay
     )
-    kwargs = {
-        'lr': config.lr,
-        'weight_decay': config.weight_decay
-    }
     if config.optimizer_name == "LAMB":
-        optimizer = Lamb(optimizer_grouped_parameters, **kwargs)
+        optimizer = Lamb(optimizer_grouped_parameters)
         return optimizer
     elif config.optimizer_name == "Adam":
-        optimizer = Adam(optimizer_grouped_parameters, **kwargs)
+        optimizer = Adam(optimizer_grouped_parameters)
         return optimizer
     elif config.optimizer_name == "AdamW":
-        optimizer = AdamW(optimizer_grouped_parameters, **kwargs)
+        optimizer = AdamW(optimizer_grouped_parameters)
         return optimizer
     else:
         raise ValueError('Unknown optimizer: {}'.format(config.optimizer_name))
@@ -96,7 +92,7 @@ def make_scheduler(optimizer, config):
         )
     else:
         raise ValueError('Unknown lr scheduler: {}'.format(config.scheduler_method))    
-    return scheduler    
+    return scheduler
 
 
 class Trainer:
