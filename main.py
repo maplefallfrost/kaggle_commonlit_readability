@@ -49,12 +49,6 @@ def k_fold_train(config):
     commonlit_dataset_property = config.dataset_properties[0]
     df = pd.read_csv(commonlit_dataset_property["train_data_path"])
 
-    kf = KFold(n_splits=config.k_fold, shuffle=True, random_state=config.rng_seed)
-    tokenizer = AutoTokenizer.from_pretrained(config.model_name)
-    tokenizer.save_pretrained(config.checkpoint_dir)
-
-    dict_data = df_to_dict(df, tokenizer, text_column=commonlit_dataset_property["text_column"])
-
     if os.path.exists(config.checkpoint_dir):
         flag = input(f"{config.checkpoint_dir} exists. Do you want to overwrite it?(y/n)")
         if flag != 'y':
@@ -62,6 +56,13 @@ def k_fold_train(config):
 
     os.makedirs(config.checkpoint_dir, exist_ok=True)
 
+    kf = KFold(n_splits=config.k_fold, shuffle=True, random_state=config.rng_seed)
+    tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+    tokenizer.save_pretrained(config.checkpoint_dir)
+
+    dict_data = df_to_dict(df, tokenizer, text_column=commonlit_dataset_property["text_column"])
+
+    valid_metrics = []
     for fold, (train_index, valid_index) in enumerate(kf.split(df)):
         print(f"fold {fold} start")
         train_dataset = CommonLitDataset(dict_data=dict_data, 
@@ -92,7 +93,11 @@ def k_fold_train(config):
             model = DataParallelWrapper(model, device_ids=device_ids)
 
         trainer = Trainer(config, device=device, model_save_dir=config.checkpoint_dir, fold=fold)
-        trainer.train(model, [train_loader], valid_loader)
+        valid_metric = trainer.train(model, [train_loader], valid_loader)
+        valid_metrics.append(valid_metric)
+    
+    mean_valid_metric = np.mean(valid_metrics)
+    fitlog.add_best_metric({f"valid": {commonlit_dataset_property['evaluator']: mean_valid_metric}})
 
 
 def k_fold_eval(config):
@@ -106,7 +111,11 @@ def k_fold_eval(config):
     df = pd.read_csv(commonlit_dataset_property["train_data_path"])
     n = df.shape[0]
 
-    kf = KFold(n_splits=config.k_fold, shuffle=True, random_state=config.rng_seed)
+    # deal with inconsistency between save and load
+    config_json_path = os.path.join(config.checkpoint_dir, "config.json")
+    if not os.path.exists(config_json_path):
+        os.rename(os.path.join(config.checkpoint_dir, "tokenizer_config.json"), config_json_path)
+
     tokenizer = AutoTokenizer.from_pretrained(config.checkpoint_dir)
 
     dict_data = df_to_dict(df, tokenizer, text_column=commonlit_dataset_property["text_column"])
@@ -114,6 +123,7 @@ def k_fold_eval(config):
     # evaluation doesn't need to load from pretrained
     delattr(config, "pretrained_dir")
 
+    kf = KFold(n_splits=config.k_fold, shuffle=True, random_state=config.rng_seed)
     k_fold_metrics = []
     for fold, (train_index, valid_index) in enumerate(kf.split(df)):
         print(f"fold {fold} start")
