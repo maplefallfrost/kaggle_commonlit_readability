@@ -15,6 +15,8 @@ class Roberta(nn.Module):
         super().__init__()
         self.embedding_method = config.embedding_method
         dataset_properties = config.dataset_properties
+
+        # if load from mlm pretrained model
         if hasattr(config, "pretrained_dir"):
             if not os.path.exists(config.pretrained_dir):
                 raise ValueError(f"pretrained dir {config.pretrained_dir} not exist")
@@ -29,6 +31,28 @@ class Roberta(nn.Module):
         else:
             model_config = AutoConfig.from_pretrained(config.model_name)
             self.backbone = AutoModelForMaskedLM.from_pretrained(config.model_name, config=model_config)
+        
+        # if reinitialize the last few layers
+        if hasattr(config, "reinit_layer"):
+            if config.reinit_layer < 0:
+                raise ValueError(f"reinit_layer should be > 0. current: {config.reinit_layer}")
+            
+            print(f'Reinitializing last {config.reinit_layer} Layers')
+            model_type = config.model_name.split("-")[0]
+            encoder_temp = getattr(self.backbone, model_type)
+            for layer in encoder_temp.encoder.layer[-config.reinit_layer:]:
+                for module in layer.modules():
+                    if isinstance(module, nn.Linear):
+                        nn.init.kaiming_normal_(module.weight.data)
+                        if module.bias is not None:
+                            module.bias.data.zero_()
+                    elif isinstance(module, nn.Embedding):
+                        nn.init.kaiming_normal_(module.weight.data)
+                        if module.padding_idx is not None:
+                            module.weight.data[module.padding_idx].zero_()
+                    elif isinstance(module, nn.LayerNorm):
+                        module.bias.data.zero_()
+                        module.weight.data.fill_(1.0)
 
         last_layers = create_last_layers(dataset_properties, model_config.hidden_size)
         self.last_layers = nn.ModuleDict({name: layer for name, layer in last_layers.items()})
