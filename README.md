@@ -1,8 +1,8 @@
-Kaggle CommonLit Readability Prize.
+# Kaggle CommonLit Readability Prize
 
-https://www.kaggle.com/c/commonlitreadabilityprize
+比赛：https://www.kaggle.com/c/commonlitreadabilityprize
 
-结果：https://drive.google.com/file/d/1H8sOUMPg9LDu9q4bbpMKobMKdbiQKDeB/view?usp=sharing
+实验结果：https://drive.google.com/file/d/1H8sOUMPg9LDu9q4bbpMKobMKdbiQKDeB/view?usp=sharing
 
 # 完成事项
 
