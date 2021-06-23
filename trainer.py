@@ -56,7 +56,8 @@ def get_optimizer_grouped_parameters(
 
 def make_optimizer(model, config):
     model_type = config.model_name.split("-")[0]
-    layerwise_lr_decay = config.get("layerwise_lr_decay", 1)
+    if not hasattr(config, "layerwise_lr_decay"):
+        layerwise_lr_decay = 1
     optimizer_grouped_parameters = get_optimizer_grouped_parameters(
         model, model_type, config.lr, config.weight_decay, layerwise_lr_decay
     )
@@ -147,6 +148,7 @@ class Trainer:
 
                 optimizer.zero_grad()
                 _, loss = model(collate_batch, dataset_property=dataset_property)
+                loss = torch.mean(loss)
                 loss.backward()
                 optimizer.step()
                 scheduler.step()
