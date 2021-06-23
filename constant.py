@@ -1,11 +1,12 @@
-from models.roberta import RobertaBase
+from models.roberta import Roberta
 
 from evaluator import (
     RMSE_Evaluator
 )
 
 model_name_to_model = {
-    "roberta-base": RobertaBase
+    "roberta-base": Roberta,
+    "roberta-large": Roberta
 }
 
 name_to_evaluator = {
