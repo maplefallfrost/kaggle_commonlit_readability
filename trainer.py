@@ -56,8 +56,9 @@ def get_optimizer_grouped_parameters(
 
 def make_optimizer(model, config):
     model_type = config.model_name.split("-")[0]
+    layerwise_lr_decay = config.get("layerwise_lr_decay", 1)
     optimizer_grouped_parameters = get_optimizer_grouped_parameters(
-        model, model_type, config.lr, config.weight_decay, config.layerwise_lr_decay
+        model, model_type, config.lr, config.weight_decay, layerwise_lr_decay
     )
     if config.optimizer_name == "LAMB":
         optimizer = Lamb(optimizer_grouped_parameters)
