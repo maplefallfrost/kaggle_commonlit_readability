@@ -11,6 +11,7 @@
   - [x] first-last-avg
   - [x] 倒数n层加权平均
 - [x] 增加eval次数
+- [x] mlm预训练 
 - [x] 损失函数
   - [x] MSE
   - [x] RMSE
