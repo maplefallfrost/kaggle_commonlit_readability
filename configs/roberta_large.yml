@@ -1,20 +1,22 @@
 key:
   k_fold: 5
   rng_seed: 0
-  model_name: "roberta-base"
+  model_name: "roberta-large"
   embedding_method: "weight-pool"
-  checkpoint_dir: "./checkpoints/roberta_base_dist_loss"
-  pretrained_dir: "./checkpoints/pretrained/roberta_base"
+  checkpoint_dir: "./checkpoints/roberta_large_dist_loss"
+  pretrained_dir: "./checkpoints/pretrained/roberta_large"
 
   train_method: "vanilla"
   scheduler_method: 'cosine'
-  batch_size: 16
+  
+  batch_size: 8
   max_epoch: 10
   weight_decay: 0.01
   optimizer_name: "AdamW"
   lr: 5e-5
   warmup_steps: 0
-  embedding_layer_start: 9
+  embedding_layer_start: 21
+  gradient_accumulation_steps: 2
 
   dataset_properties:
     -
