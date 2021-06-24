@@ -28,6 +28,7 @@ class RMSE_Evaluator:
             rmse += self._eval_batch(pred, labels)
             num_sample += pred.shape[0]
         rmse = np.sqrt(rmse / num_sample)
+        model.train()
         return rmse
     
     def _eval_batch(self, pred, labels):
