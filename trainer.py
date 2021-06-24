@@ -5,6 +5,7 @@ import os
 import torch.optim as optim
 import numpy as np
 import gc
+import math
 
 from util import to_device
 from tqdm import tqdm
@@ -141,26 +142,36 @@ class Trainer:
         losses = AverageMeter()
 
         global_step, best_valid_metric = 0, np.inf
+        num_update_steps_per_epoch = math.ceil(len(train_loader) / self.config.gradient_accumulation_steps)
+        max_train_steps = self.config.max_epoch * num_update_steps_per_epoch
+        progress_bar = tqdm(range(max_train_steps))
+
         for epoch in range(self.config.max_epoch):
-            for collate_batch in tqdm(train_loader):
+            for collate_batch in train_loader:
                 global_step += 1
                 to_device(collate_batch, self.device)
 
-                optimizer.zero_grad()
                 _, loss = model(collate_batch, dataset_property=dataset_property)
                 loss = torch.mean(loss)
+                loss /= self.config.gradient_accumulation_steps
                 loss.backward()
-                optimizer.step()
-                scheduler.step()
+
+                if global_step % self.config.gradient_accumulation_steps == 0:
+                    optimizer.step()
+                    scheduler.step()
+                    optimizer.zero_grad()
+                    progress_bar.update(1)
 
                 batch_size = next(iter(collate_batch.values())).size(0)
                 losses.update(loss.item(), batch_size)
-                if global_step % dataset_property["log_every"] == 0:
-                    fitlog.add_loss(loss.item(), name=f"loss_{self.fold}", step=global_step)
+                if global_step % (dataset_property["log_every"] * self.config.gradient_accumulation_steps) == 0:
+                    fitlog.add_loss(loss.item(), name=f"loss_{self.fold}", step=global_step // self.config.gradient_accumulation_steps)
 
-                if global_step % dataset_property["eval_every"] == 0:
+                if global_step % (dataset_property["eval_every"] * self.config.gradient_accumulation_steps) == 0:
                     valid_metric = evaluator.eval(model, valid_loader, dataset_property)
-                    fitlog.add_metric({f"valid_{self.fold}": {dataset_property['evaluator']: valid_metric}}, step=global_step//dataset_property["eval_every"])
+                    fitlog.add_metric({f"valid_{self.fold}": {dataset_property['evaluator']: valid_metric}}, 
+                        step=global_step //(dataset_property["eval_every"] * self.config.gradient_accumulation_steps)
+                    )
                     if valid_metric < best_valid_metric:
                         best_valid_metric = valid_metric
                         fitlog.add_best_metric({f"valid_{self.fold}": {dataset_property['evaluator']: valid_metric}})
