@@ -13,12 +13,13 @@ from sklearn.model_selection import KFold
 from pathlib import Path
 from util import df_to_dict, to_device, load_config, load_state_dict
 from dataset import Collator, CommonLitDataset
-from constant import model_name_to_model
+from constant import model_type_to_model
 from transformers import AutoTokenizer
 from trainer import Trainer
 from constant import name_to_evaluator
 from models.data_parallel import DataParallelWrapper
 from data_loader import DataLoaderX
+from models.self_distill import SelfDistill
 
 
 fitlog.commit(__file__)             # auto commit your codes
@@ -88,8 +89,10 @@ def k_fold_train(config):
             pin_memory=True,
             collate_fn=Collator(tokenizer.pad_token_id))
         
-        model = model_name_to_model[config.model_name](config).to(device)
-        if config.gpu.find(",") != -1:
+        model = model_type_to_model[config.model_type](config)
+        if not isinstance(model, SelfDistill):
+            model = model.to(device)
+        if config.gpu.find(",") != -1 and config.dp:
             model = DataParallelWrapper(model, device_ids=device_ids)
 
         trainer = Trainer(config, device=device, model_save_dir=config.checkpoint_dir, fold=fold)
@@ -136,7 +139,7 @@ def k_fold_eval(config):
             shuffle=False,
             collate_fn=Collator(tokenizer.pad_token_id))
         
-        model = model_name_to_model[config.model_name](config).to(device)
+        model = model_type_to_model[config.model_type](config).to(device)
 
         model_save_path = os.path.join(config.checkpoint_dir, f"model_{fold}.th")
         trained_state_dict = load_state_dict(model_save_path)
@@ -156,9 +159,12 @@ if __name__ == '__main__':
     parser.add_argument("--mode", type=str, required=True)
     parser.add_argument("--config_path", type=Path, required=True)
     parser.add_argument("--gpu", type=str, default="0")
+    parser.add_argument("--dp", action="store_true", default=False,
+                        help="use dataparallel or not")
     args = parser.parse_args()
     config = load_config(args.config_path)
     config.gpu = args.gpu
+    config.dp = args.dp
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
