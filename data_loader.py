@@ -48,7 +48,7 @@ class DataLoaderX(DataLoader):
         if self.batch is None:
             return None
         with torch.cuda.stream(self.stream):
-            to_device(collate_batch=self.batch, device=0)
+            self.batch = to_device(collate_batch=self.batch, device=0)
 
     def __next__(self):
         torch.cuda.current_stream().wait_stream(self.stream)
