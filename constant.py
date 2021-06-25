@@ -1,12 +1,13 @@
 from models.roberta import Roberta
+from models.self_distill import SelfDistill
 
 from evaluator import (
     RMSE_Evaluator
 )
 
-model_name_to_model = {
-    "roberta-base": Roberta,
-    "roberta-large": Roberta
+model_type_to_model = {
+    "roberta": Roberta,
+    "self-distill": SelfDistill
 }
 
 name_to_evaluator = {

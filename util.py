@@ -55,8 +55,10 @@ def df_to_dict(df, tokenizer, text_column):
 
 
 def to_device(collate_batch, device):
+    device_batch = dict()
     for key in collate_batch:
-        collate_batch[key] = collate_batch[key].to(device, non_blocking=True)
+        device_batch[key] = collate_batch[key].to(device, non_blocking=True)
+    return device_batch
     
 
 def load_config(config_path):
@@ -96,3 +98,8 @@ def load_state_dict(model_save_path):
             new_state_dict[name] = v
         return new_state_dict
     return state_dict
+
+
+def extract_dataset_name(output_dict):
+    dataset_name = next(iter(output_dict)).split("_")[0]
+    return dataset_name
