@@ -19,73 +19,52 @@ from transformers import (
 from constant import name_to_evaluator
 from util import AverageMeter
 
-def get_optimizer_grouped_parameters(
-    model, model_type, 
-    learning_rate, weight_decay, 
-    layerwise_learning_rate_decay
-):
+
+def get_optimizer_grouped_parameters(model, weight_decay):
     no_decay = ["bias", "LayerNorm.weight"]
-    # initialize lr for task specific layer
     optimizer_grouped_parameters = [
         {
-            "params": [p for n, p in model.named_parameters() if "classifier" in n or "pooler" in n],
+            "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+            "weight_decay": weight_decay,
+        },
+        {
+            "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
             "weight_decay": 0.0,
-            "lr": learning_rate,
         },
     ]
-    # initialize lrs for every layer
-    backbone = model.backbone
-    layers = [getattr(backbone, model_type).embeddings] + list(getattr(backbone, model_type).encoder.layer)
-    layers.reverse()
-    lr = learning_rate
-    for layer in layers:
-        lr *= layerwise_learning_rate_decay
-        optimizer_grouped_parameters += [
-            {
-                "params": [p for n, p in layer.named_parameters() if not any(nd in n for nd in no_decay)],
-                "weight_decay": weight_decay,
-                "lr": lr,
-            },
-            {
-                "params": [p for n, p in layer.named_parameters() if any(nd in n for nd in no_decay)],
-                "weight_decay": 0.0,
-                "lr": lr,
-            },
-        ]
     return optimizer_grouped_parameters
 
 
 def make_optimizer(model, config):
-    model_type = config.model_name.split("-")[0]
-    if not hasattr(config, "layerwise_lr_decay"):
-        layerwise_lr_decay = 1
     optimizer_grouped_parameters = get_optimizer_grouped_parameters(
-        model, model_type, config.lr, config.weight_decay, layerwise_lr_decay
+        model, config.weight_decay
     )
     if config.optimizer_name == "LAMB":
-        optimizer = Lamb(optimizer_grouped_parameters)
+        optimizer = Lamb(optimizer_grouped_parameters, lr=config.lr)
         return optimizer
     elif config.optimizer_name == "Adam":
-        optimizer = Adam(optimizer_grouped_parameters)
+        optimizer = Adam(optimizer_grouped_parameters, lr=config.lr)
         return optimizer
     elif config.optimizer_name == "AdamW":
-        optimizer = AdamW(optimizer_grouped_parameters)
+        optimizer = AdamW(optimizer_grouped_parameters, lr=config.lr)
         return optimizer
     else:
         raise ValueError('Unknown optimizer: {}'.format(config.optimizer_name))
 
 
-def make_scheduler(optimizer, config):
+def make_scheduler(optimizer, config, **kwargs):
     if config.scheduler_method == 'cosine':
         scheduler = optim.lr_scheduler.CosineAnnealingLR(
             optimizer,
             T_max=config.max_epoch
         )
     elif config.scheduler_method == "cosine_warmup":
+        num_warmup_steps = kwargs.get('num_warmup_steps')
+        num_training_steps = kwargs.get('num_training_steps')
         scheduler = get_cosine_schedule_with_warmup(
             optimizer,
-            num_warmup_steps=config.warmup_steps,
-            num_training_steps=config.max_epoch
+            num_warmup_steps=num_warmup_steps,
+            num_training_steps=num_training_steps
         )
     elif config.scheduler_method == "linear":
         scheduler = get_linear_schedule_with_warmup(
@@ -135,9 +114,14 @@ class Trainer:
         dataset_property: dict.
         """
         gc.enable()
-        model.train()
+        num_training_steps = len(train_loader) * self.config.max_epoch // self.config.gradient_accumulation_steps
+        num_warmup_steps = self.config.warmup_proportion * num_training_steps
+
         optimizer = make_optimizer(model, self.config)
-        scheduler = make_scheduler(optimizer, self.config)
+        scheduler = make_scheduler(optimizer, self.config,
+            num_warmup_steps=num_warmup_steps,
+            num_training_steps=num_training_steps
+        )
         evaluator = name_to_evaluator[dataset_property['evaluator']](self.device)
         losses = AverageMeter()
 
@@ -149,9 +133,9 @@ class Trainer:
         for epoch in range(self.config.max_epoch):
             for collate_batch in train_loader:
                 global_step += 1
-                to_device(collate_batch, self.device)
 
-                _, loss = model(collate_batch, dataset_property=dataset_property)
+                model.train()
+                _, loss = model(collate_batch, dataset_property=dataset_property, epoch=epoch)
                 loss = torch.mean(loss)
                 loss /= self.config.gradient_accumulation_steps
                 loss.backward()
@@ -170,7 +154,7 @@ class Trainer:
                 if global_step % (dataset_property["eval_every"] * self.config.gradient_accumulation_steps) == 0:
                     valid_metric = evaluator.eval(model, valid_loader, dataset_property)
                     fitlog.add_metric({f"valid_{self.fold}": {dataset_property['evaluator']: valid_metric}}, 
-                        step=global_step //(dataset_property["eval_every"] * self.config.gradient_accumulation_steps)
+                        step=global_step // (dataset_property["eval_every"] * self.config.gradient_accumulation_steps)
                     )
                     if valid_metric < best_valid_metric:
                         best_valid_metric = valid_metric
