@@ -15,7 +15,8 @@ key:
   lr: 5e-5
   warmup_steps: 0
   embedding_layer_start: 9
-  reinit_layer: 2
+  reinit_layer: 1
+  gradient_accumulation_steps: 1
 
   dataset_properties:
     -
