@@ -9,18 +9,20 @@ class LossWrapper:
 
     def forward(self, collate_batch, output_dict, **kwargs):
         dataset_name = next(iter(output_dict)).split("_")[0]
-        label_name = "_".join([dataset_name, "label"])
         if self.loss_name == 'MSE':
+            label_name = "_".join([dataset_name, "mean"])
             pred_label = output_dict[label_name]
             ground_truth_label = collate_batch[label_name]
             return MSE_loss(pred_label, ground_truth_label)
         
         if self.loss_name == 'RMSE':
+            label_name = "_".join([dataset_name, "mean"])
             pred_label = output_dict[label_name]
             ground_truth_label = collate_batch[label_name]
             return RMSE_loss(pred_label, ground_truth_label)
         
         if self.loss_name == 'dist':
+            label_name = "_".join([dataset_name, "mean"])
             pred_mean = output_dict[label_name].squeeze()
             standard_error_name = "_".join([dataset_name, "standard_error"])
             pred_std = output_dict[standard_error_name].squeeze()

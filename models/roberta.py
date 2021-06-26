@@ -129,11 +129,11 @@ class Roberta(nn.Module):
         Ouptut
         output: torch.Tensor. size [batch_size]
         """
-        output_dict, _ = self.forward(collate_batch)
-        label_name = "_".join([dataset_property['name'], 'label'])
-        output = output_dict[label_name]
+        output_dict, _ = self.forward(collate_batch, dataset_property=dataset_property)
         task = dataset_property["task"]
         if task == 'reg':
+            label_name = "_".join([dataset_property['name'], 'mean'])
+            output = output_dict[label_name]
             return output
         elif task == 'cls':
             pred_label = torch.argmax(output, dim=-1)

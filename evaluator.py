@@ -20,7 +20,7 @@ class RMSE_Evaluator:
         for collate_batch in tqdm(loader):
             with torch.no_grad():
                 pred = model.predict(collate_batch, dataset_property)
-            labels = collate_batch[f"{dataset_name}_label"]
+            labels = collate_batch[f"{dataset_name}_mean"]
             pred = pred.view(-1).to(labels.dtype).detach().cpu().numpy()
             labels = labels.cpu().numpy()
             rmse += self._eval_batch(pred, labels)
