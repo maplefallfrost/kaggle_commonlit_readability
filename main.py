@@ -11,12 +11,12 @@ import pandas as pd
 from torch.utils.data.dataloader import DataLoader
 from sklearn.model_selection import KFold
 from pathlib import Path
-from util import df_to_dict, to_device, load_config, load_state_dict
+from util import df_to_dict, load_config, load_state_dict
 from dataset import Collator, CommonLitDataset
 from constant import model_type_to_model
 from transformers import AutoTokenizer
 from trainer import Trainer
-from constant import name_to_evaluator
+from constant import name_to_evaluator, name_to_dataset_class
 from models.data_parallel import DataParallelWrapper
 from data_loader import DataLoaderX
 from models.self_distill import SelfDistill
@@ -24,7 +24,6 @@ from models.self_distill import SelfDistill
 
 fitlog.commit(__file__)             # auto commit your codes
 fitlog.set_log_dir('logs/')         # set the logging directory
-fitlog.add_hyper_in_file(__file__)  # record your hyper-parameters
 
 
 def setup_seed(seed):
@@ -66,7 +65,8 @@ def k_fold_train(config):
     valid_metrics = []
     for fold, (train_index, valid_index) in enumerate(kf.split(df)):
         print(f"fold {fold} start")
-        train_dataset = CommonLitDataset(dict_data=dict_data, 
+        train_dataset = name_to_dataset_class[commonlit_dataset_property['dataset_class_name']](
+            dict_data=dict_data, 
             dataset_name=commonlit_dataset_property["name"],
             subset_index=train_index)
         valid_dataset = CommonLitDataset(dict_data=dict_data, 
@@ -167,6 +167,8 @@ if __name__ == '__main__':
     config.dp = args.dp
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+    fitlog.add_hyper_in_file(__file__)  # record your hyper-parameters
 
     if args.mode == 'train':
         k_fold_train(config)

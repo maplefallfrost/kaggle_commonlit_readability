@@ -4,7 +4,7 @@ key:
   model_type: "roberta"
   model_name: "roberta-base"
   embedding_method: "weight-pool"
-  checkpoint_dir: "./checkpoints/debug"
+  checkpoint_dir: "./checkpoints/roberta_base_cls_soft_label"
   pretrained_dir: "./checkpoints/pretrained/roberta_base"
 
   train_method: "vanilla"
@@ -14,8 +14,8 @@ key:
   weight_decay: 0.01
   optimizer_name: "AdamW"
   lr: 5e-5
-  warmup_steps: 0
   embedding_layer_start: 9
+  warmup_proportion: 0.1
   gradient_accumulation_steps: 1
   hidden_dropout_prob: 0.0
   attention_probs_dropout_prob: 0.0
@@ -23,16 +23,21 @@ key:
   dataset_properties:
     -
       name: commonlit
-      task: "reg"
-      train_data_path: "../data/train.csv"
+      dataset_class_name: commonlit_soft_label
+      task: "cls"
+      train_data_path: "../data/train_with_soft_label.csv"
       text_column: 'text'
-      loss_name: 'dist'
+      loss_name: 'KL_div'
       evaluator: 'RMSE'
       log_every: 10
       eval_every: 10
       branches:
-        - label
-        - standard_error
+        - soft_label
       num_classes:
-        - 1
-        - 1
+        - 67
+      last_layers:
+        - normalize_sigmoid
+
+      range_min: -4.299888984
+      range_max: 2.358289505 
+      interval: 0.1
