@@ -6,6 +6,7 @@ from transformers import AutoConfig, AutoModelForMaskedLM
 from models.util import create_last_layers
 from modules.weighted_layer_pooling import WeightedLayerPooling
 from loss import LossWrapper
+from util import get_class_to_score, prob_to_mean
 
 class Roberta(nn.Module):
     def __init__(self, config):
@@ -13,6 +14,9 @@ class Roberta(nn.Module):
         config: argparse.Namespace.
         """
         super().__init__()
+        # just for getting the model device.
+        self.dummy_param = nn.Parameter(torch.empty(0))
+
         self.embedding_method = config.embedding_method
         dataset_properties = config.dataset_properties
 
@@ -94,8 +98,9 @@ class Roberta(nn.Module):
         output: dict.
         loss: Optional[torch.Tensor]. size: [1] 
         """
-        dataset_property = kwargs.get('dataset_property', None)
-        branches = dataset_property['branches'] if dataset_property else ['label']
+        dataset_property = kwargs.get('dataset_property')
+        branches = dataset_property['branches']
+
         token_ids = None
         for key in collate_batch.keys():
             if key.find("token_ids") != -1:
@@ -114,8 +119,9 @@ class Roberta(nn.Module):
             except Exception:
                 raise ValueError(f"{key} last layer doesn't exist. Please check your Collator implementation.")
         
+        
         loss = None
-        if dataset_property:
+        if self.training:
             self.loss_wrapper = LossWrapper(dataset_property['loss_name'])
             loss = self.loss_wrapper.forward(collate_batch, output_dict)
 
@@ -131,12 +137,17 @@ class Roberta(nn.Module):
         """
         output_dict, _ = self.forward(collate_batch, dataset_property=dataset_property)
         task = dataset_property["task"]
+        label_name = "_".join([dataset_property['name'], dataset_property['branches'][0]])
+        output = output_dict[label_name]
         if task == 'reg':
-            label_name = "_".join([dataset_property['name'], 'mean'])
-            output = output_dict[label_name]
             return output
         elif task == 'cls':
-            pred_label = torch.argmax(output, dim=-1)
-            return pred_label
+            class_to_score = get_class_to_score(
+                dataset_property['range_min'],
+                dataset_property['range_max'],
+                dataset_property['interval']
+            ).to(self.dummy_param.device)
+            mean = prob_to_mean(output, class_to_score)
+            return mean
         else:
             raise ValueError(f"Unknown task {task}. Should be in (cls/reg)")

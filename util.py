@@ -1,8 +1,10 @@
 import argparse
-from typing import OrderedDict
 import yaml
 import re
 import torch
+import numpy as np
+
+from collections import OrderedDict
 
 class AverageMeter(object):
     def __init__(self):
@@ -103,3 +105,19 @@ def load_state_dict(model_save_path):
 def extract_dataset_name(output_dict):
     dataset_name = next(iter(output_dict)).split("_")[0]
     return dataset_name
+
+
+def get_class_to_score(range_min, range_max, interval):
+    score_range = np.arange(range_min, range_max + interval, interval)
+    class_to_score = np.zeros(shape=(1, len(score_range) - 1))
+    for i in range(len(score_range) - 1):
+        class_to_score[0][i] = (score_range[i] + score_range[i + 1]) / 2
+    return torch.Tensor(class_to_score)
+
+
+def prob_to_mean(probs, class_to_score):
+    if class_to_score.size(1) != probs.size(1):
+        raise ValueError("class_to_score.size(1) should be equal to probs.size(1). Please check range_min, range_max, and interval.")
+    batch_class_to_score = class_to_score.expand_as(probs)
+    batch_mean = torch.sum(batch_class_to_score * probs, axis=1)
+    return batch_mean
