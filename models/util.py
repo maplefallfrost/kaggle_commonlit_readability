@@ -19,7 +19,7 @@ def normalize_sigmoid_layer(in_dim, out_dim):
 def linear_softmax_layer(in_dim, out_dim):
     return nn.Sequential(
         linear_layer(in_dim, out_dim),
-        nn.Softmax()
+        nn.Softmax(dim=1)
     )
 
 

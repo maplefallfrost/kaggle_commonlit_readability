@@ -88,5 +88,5 @@ def KL_div_loss(pred, gt):
 def NLL_loss(pred, gt):
     nll_loss_fn = torch.nn.NLLLoss()
     gt_argmax = torch.argmax(gt, dim=1)
-    nll_loss = nll_loss_fn(pred + eps, gt_argmax)
+    nll_loss = nll_loss_fn(torch.log(pred + eps), gt_argmax)
     return nll_loss
