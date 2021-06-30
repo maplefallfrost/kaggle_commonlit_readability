@@ -22,7 +22,6 @@ from data_loader import DataLoaderX
 from models.self_distill import SelfDistill
 
 
-fitlog.commit(__file__)             # auto commit your codes
 fitlog.set_log_dir('logs/')         # set the logging directory
 
 
@@ -74,15 +73,17 @@ def k_fold_train(config):
             subset_index=valid_index)
 
         train_loader = DataLoaderX(
+            device,
             dataset=train_dataset,
             batch_size=config.batch_size,
             shuffle=True,
             collate_fn=Collator(tokenizer.pad_token_id),
             pin_memory=True,
             drop_last=True,
-            num_workers=4)
+            num_workers=3)
            
         valid_loader = DataLoaderX(
+            device,
             dataset=valid_dataset,
             batch_size=config.batch_size,
             shuffle=False,
@@ -112,7 +113,6 @@ def k_fold_eval(config):
     # Note that the setting of commonlit dataset should be always put in the first in the config.yml.
     commonlit_dataset_property = config.dataset_properties[0]
     df = pd.read_csv(commonlit_dataset_property["train_data_path"])
-    n = df.shape[0]
 
     # deal with inconsistency between save and load
     config_json_path = os.path.join(config.checkpoint_dir, "config.json")
@@ -124,29 +124,45 @@ def k_fold_eval(config):
     dict_data = df_to_dict(df, tokenizer, text_column=commonlit_dataset_property["text_column"])
 
     # evaluation doesn't need to load from pretrained
-    delattr(config, "pretrained_dir")
+    # delattr(config, "pretrained_dir")
 
     kf = KFold(n_splits=config.k_fold, shuffle=True, random_state=config.rng_seed)
     k_fold_metrics = []
     for fold, (train_index, valid_index) in enumerate(kf.split(df)):
         print(f"fold {fold} start")
+        train_dataset = CommonLitDataset(dict_data=dict_data, 
+            dataset_name=commonlit_dataset_property["name"],
+            subset_index=train_index)
         valid_dataset = CommonLitDataset(dict_data=dict_data, 
             dataset_name=commonlit_dataset_property["name"],
             subset_index=valid_index)
 
-        valid_loader = DataLoader(valid_dataset,
+        train_loader = DataLoaderX(
+            device,
+            dataset=train_dataset,
+            batch_size=config.batch_size,
+            shuffle=False,
+            collate_fn=Collator(tokenizer.pad_token_id),
+            pin_memory=True,
+            num_workers=3)
+
+        valid_loader = DataLoaderX(
+            device,
+            dataset=valid_dataset,
             batch_size=config.batch_size,
             shuffle=False,
             collate_fn=Collator(tokenizer.pad_token_id))
         
-        model = model_type_to_model[config.model_type](config).to(device)
+        model = model_type_to_model[config.model_type](config)
+        if not isinstance(model, SelfDistill):
+            model = model.to(device)
 
         model_save_path = os.path.join(config.checkpoint_dir, f"model_{fold}.th")
         trained_state_dict = load_state_dict(model_save_path)
         model.load_state_dict(trained_state_dict)
 
-        evaluator = name_to_evaluator[commonlit_dataset_property['evaluator']](device)
-        valid_metric = evaluator.eval(model, valid_loader, commonlit_dataset_property)
+        evaluator = name_to_evaluator[commonlit_dataset_property['evaluator']]()
+        valid_metric = evaluator.eval(model, train_loader, valid_loader, commonlit_dataset_property)
         k_fold_metrics.append(valid_metric)
     
     k_fold_metrics = np.array(k_fold_metrics)
@@ -171,6 +187,7 @@ if __name__ == '__main__':
     fitlog.add_hyper_in_file(__file__)  # record your hyper-parameters
 
     if args.mode == 'train':
+        fitlog.commit(__file__)             # auto commit your codes
         k_fold_train(config)
     elif args.mode == 'eval':
         k_fold_eval(config)

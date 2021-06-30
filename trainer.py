@@ -122,7 +122,7 @@ class Trainer:
             num_warmup_steps=num_warmup_steps,
             num_training_steps=num_training_steps
         )
-        evaluator = name_to_evaluator[dataset_property['evaluator']](self.device)
+        evaluator = name_to_evaluator[dataset_property['evaluator']]()
         losses = AverageMeter()
 
         global_step, best_valid_metric = 0, np.inf
@@ -152,7 +152,7 @@ class Trainer:
                     fitlog.add_loss(loss.item(), name=f"loss_{self.fold}", step=global_step // self.config.gradient_accumulation_steps)
 
                 if global_step % (dataset_property["eval_every"] * self.config.gradient_accumulation_steps) == 0:
-                    valid_metric = evaluator.eval(model, valid_loader, dataset_property)
+                    valid_metric = evaluator.eval(model, train_loader, valid_loader, dataset_property)
                     fitlog.add_metric({f"valid_{self.fold}": {dataset_property['evaluator']: valid_metric}}, 
                         step=global_step // (dataset_property["eval_every"] * self.config.gradient_accumulation_steps)
                     )
