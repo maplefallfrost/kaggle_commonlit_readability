@@ -4,7 +4,7 @@ key:
   model_type: "self-distill"
   model_name: "roberta-base"
   embedding_method: "weight-pool"
-  checkpoint_dir: "./checkpoints/self_distill_roberta_base_no_js"
+  checkpoint_dir: "./checkpoints/self_distill_roberta_base"
   pretrained_dir: "./checkpoints/pretrained/roberta_base"
 
   train_method: "vanilla"
@@ -37,4 +37,9 @@ key:
       num_classes:
         - 1
         - 1
+      last_layers:
+        - linear
+        - linear
       distill_start_epoch: 1
+      predict_method: 'knn'
+      knn_k: 5
