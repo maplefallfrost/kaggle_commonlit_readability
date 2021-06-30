@@ -33,8 +33,9 @@ class BackgroundGenerator(threading.Thread):
 
 
 class DataLoaderX(DataLoader):
-    def __init__(self, **kwargs):
+    def __init__(self, device, **kwargs):
         super(DataLoaderX, self).__init__(**kwargs)
+        self.device = device
         self.stream = torch.cuda.Stream()
 
     def __iter__(self):
@@ -48,7 +49,7 @@ class DataLoaderX(DataLoader):
         if self.batch is None:
             return None
         with torch.cuda.stream(self.stream):
-            self.batch = to_device(collate_batch=self.batch, device=0)
+            self.batch = to_device(collate_batch=self.batch, device=self.device)
 
     def __next__(self):
         torch.cuda.current_stream().wait_stream(self.stream)
