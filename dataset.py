@@ -50,9 +50,11 @@ class CommonLitDataset:
         self.dict_data = dict_data
         self.subset_index = subset_index
         self.dataset_name = dataset_name
+        self.size = len(subset_index) if subset_index else len(dict_data['text'])
 
     def __getitem__(self, index):
-        index = self.subset_index[index]
+        if self.subset_index:
+            index = self.subset_index[index]
 
         sample = {
             f'{self.dataset_name}_token_ids': self.dict_data['text'][index],
@@ -62,7 +64,7 @@ class CommonLitDataset:
         return sample
     
     def __len__(self):
-        return len(self.subset_index)
+        return self.size
 
 
 class CommonLitSoftLabelDataset:
