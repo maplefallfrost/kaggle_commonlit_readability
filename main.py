@@ -8,8 +8,6 @@ import sys
 import numpy as np
 import pandas as pd
 
-from torch.utils.data.dataloader import DataLoader
-from sklearn.model_selection import KFold
 from pathlib import Path
 from util import df_to_dict, load_config, load_state_dict
 from dataset import Collator, CommonLitDataset
@@ -55,15 +53,16 @@ def k_fold_train(config):
 
     os.makedirs(config.checkpoint_dir, exist_ok=True)
 
-    kf = KFold(n_splits=config.k_fold, shuffle=True, random_state=config.rng_seed)
     tokenizer = AutoTokenizer.from_pretrained(config.model_name)
     tokenizer.save_pretrained(config.checkpoint_dir)
 
     dict_data = df_to_dict(df, tokenizer, text_column=commonlit_dataset_property["text_column"])
 
     valid_metrics = []
-    for fold, (train_index, valid_index) in enumerate(kf.split(df)):
+    for fold in range(config.k_fold):
         print(f"fold {fold} start")
+        train_index = df[df[f"fold{fold}"] < 2].index.tolist()
+        valid_index = df[df[f"fold{fold}"] == 2].index.tolist()
         train_dataset = name_to_dataset_class[commonlit_dataset_property['dataset_class_name']](
             dict_data=dict_data, 
             dataset_name=commonlit_dataset_property["name"],
@@ -126,10 +125,11 @@ def k_fold_eval(config):
     # evaluation doesn't need to load from pretrained
     # delattr(config, "pretrained_dir")
 
-    kf = KFold(n_splits=config.k_fold, shuffle=True, random_state=config.rng_seed)
     k_fold_metrics = []
-    for fold, (train_index, valid_index) in enumerate(kf.split(df)):
+    for fold in range(config.k_fold):
         print(f"fold {fold} start")
+        train_index = df[df[f"fold{fold}"] < 2].index.tolist()
+        valid_index = df[df[f"fold{fold}"] == 2].index.tolist()
         train_dataset = CommonLitDataset(dict_data=dict_data, 
             dataset_name=commonlit_dataset_property["name"],
             subset_index=train_index)
@@ -164,6 +164,7 @@ def k_fold_eval(config):
         evaluator = name_to_evaluator[commonlit_dataset_property['evaluator']]()
         valid_metric = evaluator.eval(model, train_loader, valid_loader, commonlit_dataset_property)
         k_fold_metrics.append(valid_metric)
+        print(f"fold {fold} metric: {valid_metric}")
     
     k_fold_metrics = np.array(k_fold_metrics)
     print(k_fold_metrics)
