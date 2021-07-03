@@ -159,7 +159,7 @@ def k_fold_eval(config):
 
         model_save_path = os.path.join(config.checkpoint_dir, f"model_{fold}.th")
         trained_state_dict = load_state_dict(model_save_path)
-        model.load_state_dict(trained_state_dict)
+        model.load_state_dict(trained_state_dict, strict=False)
 
         evaluator = name_to_evaluator[commonlit_dataset_property['evaluator']]()
         valid_metric = evaluator.eval(model, train_loader, valid_loader, commonlit_dataset_property)
