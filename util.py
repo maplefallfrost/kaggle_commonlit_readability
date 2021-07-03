@@ -85,8 +85,7 @@ def load_config(config_path):
         list(u'-+0123456789.'))
 
     with open(config_path, "r") as fp:
-        config = yaml.load(fp, Loader=loader)['key']
-    config = argparse.Namespace(**config)
+        config = yaml.load(fp, Loader=loader)
     return config
 
 

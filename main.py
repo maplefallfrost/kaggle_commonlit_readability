@@ -61,7 +61,7 @@ def k_fold_train(config):
     valid_metrics = []
     for fold in range(config.k_fold):
         print(f"fold {fold} start")
-        train_index = df[df[f"fold{fold}"] < 2].index.tolist()
+        train_index = df[df[f"fold{fold}"] == 0].index.tolist()
         valid_index = df[df[f"fold{fold}"] == 2].index.tolist()
         train_dataset = name_to_dataset_class[commonlit_dataset_property['dataset_class_name']](
             dict_data=dict_data, 
@@ -128,7 +128,7 @@ def k_fold_eval(config):
     k_fold_metrics = []
     for fold in range(config.k_fold):
         print(f"fold {fold} start")
-        train_index = df[df[f"fold{fold}"] < 2].index.tolist()
+        train_index = df[df[f"fold{fold}"] == 0].index.tolist()
         valid_index = df[df[f"fold{fold}"] == 2].index.tolist()
         train_dataset = CommonLitDataset(dict_data=dict_data, 
             dataset_name=commonlit_dataset_property["name"],
@@ -179,7 +179,8 @@ if __name__ == '__main__':
     parser.add_argument("--dp", action="store_true", default=False,
                         help="use dataparallel or not")
     args = parser.parse_args()
-    config = load_config(args.config_path)
+    config = load_config(args.config_path)['key']
+    config = argparse.Namespace(**config)
     config.gpu = args.gpu
     config.dp = args.dp
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu

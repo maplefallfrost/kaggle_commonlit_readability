@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-from torch.utils import data
 
 from tqdm import tqdm
 from sklearn.neighbors import KDTree
@@ -9,6 +8,7 @@ class KNNHelper:
     def __init__(self, model, train_loader, dataset_property):
         last_embs, scores = self._get_knn_embedding_score(model, train_loader, dataset_property)
         self.kd_tree = KDTree(last_embs)
+        self.last_embs = last_embs
         self.scores = scores
         self.dataset_property = dataset_property
         
@@ -25,10 +25,32 @@ class KNNHelper:
         scores = np.hstack(scores)
         return last_embs, scores
     
-    def predict(self, preb_emb):
+    def predict(self, pred_emb, **kwargs):
         k = self.dataset_property['knn_k']
-        dists, neighbors = self.kd_tree.query(preb_emb, k=k)
-        dists = dists / np.sum(dists, axis=1, keepdims=True)
+        dists, neighbors = self.kd_tree.query(pred_emb, k=k)
         pred_scores = self.scores[neighbors]
+        extra_emb = kwargs.get('extra_emb', None)
+        if extra_emb is not None:
+            extra_score = kwargs['extra_score']
+            extra_dist = np.linalg.norm(extra_emb - pred_emb)
+            argmax_dists = np.argmax(dists, axis=1)
+            for i, d in enumerate(argmax_dists):
+                if d > extra_dist:
+                    dists[i, d] = extra_dist
+                    pred_scores[i, d] = extra_score
+            
+        dists = dists / np.sum(dists, axis=1, keepdims=True)
         pred_scores = np.sum(dists * pred_scores, axis=1)
         return pred_scores
+    
+    def is_text_confident(self, new_text_emb, new_text_score):
+        k = self.dataset_property['knn_k']
+        dists, neighbors = self.kd_tree.query(new_text_emb, k=k)
+        neighbors = neighbors[0]
+        embs = self.last_embs[neighbors]
+        gt_scores = self.scores[neighbors]
+        old_pred_scores = self.predict(embs)
+        new_pred_scores = self.predict(embs, extra_emb=new_text_emb, extra_score=new_text_score)
+        old_diff = np.linalg.norm(gt_scores - old_pred_scores)
+        new_diff = np.linalg.norm(gt_scores - new_pred_scores)
+        return new_diff < old_diff

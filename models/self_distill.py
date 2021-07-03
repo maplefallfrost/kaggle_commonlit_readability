@@ -92,7 +92,6 @@ class SelfDistill(nn.Module):
         output: torch.Tensor. size [batch_size]
         """
         output_dict, _ = self.forward(collate_batch, dataset_property=dataset_property)
-        label_name = "_".join([dataset_property['name'], 'label'])
         task = dataset_property["task"]
         if dataset_property.get('predict_method', None) == 'knn':
             if 'knn_helper' not in kwargs:
@@ -102,8 +101,9 @@ class SelfDistill(nn.Module):
             pred = knn_helper.predict(pred_emb)
             return pred
 
-        output = output_dict[label_name]
         if task == 'reg':
+            label_name = "_".join([dataset_property['name'], 'mean'])
+            output = output_dict[label_name]
             return output.view(-1).cpu().numpy()
         elif task == 'cls':
             class_to_score = get_class_to_score(
