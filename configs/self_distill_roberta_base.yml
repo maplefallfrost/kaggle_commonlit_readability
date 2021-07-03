@@ -18,8 +18,9 @@ key:
   embedding_layer_start: 9
   gradient_accumulation_steps: 1
   warmup_proportion: 0.1
-  hidden_dropout_prob: 0.0
-  attention_probs_dropout_prob: 0.0
+  model_config_dict:
+    hidden_dropout_prob: 0.0
+    attention_probs_dropout_prob: 0.0
 
   dataset_properties:
     -
@@ -41,5 +42,5 @@ key:
         - linear
         - linear
       distill_start_epoch: 1
-      predict_method: 'knn'
-      knn_k: 10
+      # predict_method: 'knn'
+      # knn_k: 10
