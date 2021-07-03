@@ -1,18 +1,17 @@
-from models.roberta import Roberta
+from models.huggingface import MLMModel
 from models.self_distill import SelfDistill
 from dataset import (
     CommonLitDataset,
     CommonLitSoftLabelDataset
 )
 
-eps = 1e-10
-
 from evaluator import (
     RMSE_Evaluator
 )
 
 model_type_to_model = {
-    "roberta": Roberta,
+    "roberta": MLMModel,
+    "bert": MLMModel,
     "self-distill": SelfDistill
 }
 

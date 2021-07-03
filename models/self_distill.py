@@ -2,14 +2,14 @@ import torch
 import torch.nn as nn
 from torch.utils import data
 
-from models.roberta import Roberta
+from models.huggingface import MLMModel
 from loss import Gaussian_js_loss
 from util import to_device
 from models.base import BaseModel
 
 # replica of constant.py for dealing with circular import
 model_name_to_model = {
-    "roberta-base": Roberta
+    "roberta-base": MLMModel
 }
 
 class SelfDistill(BaseModel):
