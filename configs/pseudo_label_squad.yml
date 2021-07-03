@@ -1,0 +1,6 @@
+seq_min_len: 150
+seq_max_len: 300
+pl_dataset_name: 'squad'
+pl_text_column: 'context'
+get_seq_method: 'vanilla'
+csv_save_path: "../data/train_squad.csv"

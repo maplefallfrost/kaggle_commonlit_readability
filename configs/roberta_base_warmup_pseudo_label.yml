@@ -1,31 +1,31 @@
 key:
   k_fold: 5
   rng_seed: 0
-  model_type: "self-distill"
+  model_type: "roberta"
   model_name: "roberta-base"
   embedding_method: "weight-pool"
-  checkpoint_dir: "./checkpoints/self_distill_roberta_base"
+  checkpoint_dir: "./checkpoints/roberta_base_warmup_pseudo_label"
   pretrained_dir: "./checkpoints/pretrained/roberta_base"
 
   train_method: "vanilla"
-  scheduler_method: 'cosine'
+  scheduler_method: 'cosine_warmup'
   batch_size: 16
-  max_epoch: 15
+  max_epoch: 5
   weight_decay: 0.01
   optimizer_name: "AdamW"
   lr: 5e-5
-  warmup_steps: 0
+  warmup_proportion: 0.1
   embedding_layer_start: 9
   gradient_accumulation_steps: 1
-  warmup_proportion: 0.1
   hidden_dropout_prob: 0.0
   attention_probs_dropout_prob: 0.0
 
   dataset_properties:
     -
       name: commonlit
+      dataset_class_name: commonlit
       task: "reg"
-      train_data_path: "../data/train_with_fold.csv"
+      train_data_path: "../data/train_squad.csv"
       text_column: 'text'
       loss_name: 'dist'
       evaluator: 'RMSE'
@@ -40,6 +40,5 @@ key:
       last_layers:
         - linear
         - linear
-      distill_start_epoch: 1
-      predict_method: 'knn'
-      knn_k: 10
+      # predict_method: 'knn'
+      # knn_k: 4

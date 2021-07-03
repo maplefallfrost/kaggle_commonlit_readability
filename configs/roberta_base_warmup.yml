@@ -25,7 +25,7 @@ key:
       name: commonlit
       dataset_class_name: commonlit
       task: "reg"
-      train_data_path: "../data/train.csv"
+      train_data_path: "../data/train_with_fold.csv"
       text_column: 'text'
       loss_name: 'dist'
       evaluator: 'RMSE'
@@ -40,3 +40,5 @@ key:
       last_layers:
         - linear
         - linear
+      # predict_method: 'knn'
+      # knn_k: 4
