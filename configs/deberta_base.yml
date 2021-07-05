@@ -4,8 +4,8 @@ key:
   model_type: "roberta"
   model_name: "roberta-base"
   embedding_method: "weight-pool"
-  checkpoint_dir: "./checkpoints/roberta_base_warmup"
-  pretrained_dir: "./checkpoints/pretrained/roberta_base"
+  checkpoint_dir: "./checkpoints/deberta_base"
+  pretrained_dir: "./checkpoints/pretrained/deberta_base"
 
   train_method: "vanilla"
   scheduler_method: 'cosine_warmup'
@@ -43,4 +43,4 @@ key:
         - linear
         - linear
       # predict_method: 'knn'
-      # knn_k: 2
+      # knn_k: 4

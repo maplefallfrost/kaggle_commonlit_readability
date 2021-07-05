@@ -2,5 +2,10 @@ seq_min_len: 150
 seq_max_len: 300
 pl_dataset_name: 'squad'
 pl_text_column: 'context'
+pl_split_names:
+  - 'train'
+  - 'validation'
 get_seq_method: 'vanilla'
-csv_save_path: "../data/train_squad.csv"
+data_load_path: "../data/train_with_fold.csv"
+data_save_path: "../data/train_squad.csv"
+eval_batch_size: 16

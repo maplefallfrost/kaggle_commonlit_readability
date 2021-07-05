@@ -1,5 +1,5 @@
 from models.huggingface import MLMModel
-from models.self_distill import SelfDistill
+from models.ensemble import EnsembleModel
 from dataset import (
     CommonLitDataset,
     CommonLitSoftLabelDataset
@@ -12,7 +12,7 @@ from evaluator import (
 model_type_to_model = {
     "roberta": MLMModel,
     "bert": MLMModel,
-    "self-distill": SelfDistill
+    "self-distill": EnsembleModel
 }
 
 name_to_evaluator = {
@@ -23,3 +23,5 @@ name_to_dataset_class = {
     'commonlit': CommonLitDataset,
     'commonlit_soft_label': CommonLitSoftLabelDataset
 }
+
+data_split_type = {'train': 0, 'valid': 1, 'train_extra': 2, 'no_use': 3}

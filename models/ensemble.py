@@ -4,7 +4,7 @@ from torch.utils import data
 
 from models.huggingface import MLMModel
 from loss import Gaussian_js_loss
-from util import to_device
+from util import to_device, extract_dataset_name
 from models.base import BaseModel
 
 # replica of constant.py for dealing with circular import
@@ -12,7 +12,7 @@ model_name_to_model = {
     "roberta-base": MLMModel
 }
 
-class SelfDistill(BaseModel):
+class EnsembleModel(BaseModel):
     def __init__(self, config):
         """
         config: argparse.Namespace.
@@ -56,22 +56,22 @@ class SelfDistill(BaseModel):
             model_2_loss = model_2_loss.to("cuda:0")
             output_gt_loss = torch.mean(torch.stack([model_1_loss, model_2_loss]))
             output_output_loss = 0
-            # if dataset_property["task"] == 'reg':
-            #     # for simplicity, when the task is 'reg', assume model_1 and model_2 both output mean and std.
-            #     # use JS divergence with Gaussian distribution to evaluate the difference between model_1 and model_2's output
-            #     # not to write general codes
-            #     dataset_name = extract_dataset_name(model_1_output_dict)
-            #     label_name = "_".join([dataset_name, "label"])
-            #     standard_error_name = "_".join([dataset_name, "standard_error"])
-            #     output_output_loss = Gaussian_js_loss(
-            #         model_1_output_dict[label_name], model_1_output_dict[standard_error_name],
-            #         model_2_output_dict[label_name], model_2_output_dict[standard_error_name]
-            #     )
-            #     epoch = kwargs.get('epoch', 0)
-            #     if epoch < dataset_property['distill_start_epoch']:
-            #         output_output_loss = 0
-            # else:
-            #     output_output_loss = 0
+            if dataset_property["task"] == 'reg':
+                # for simplicity, when the task is 'reg', assume model_1 and model_2 both output mean and std.
+                # use JS divergence with Gaussian distribution to evaluate the difference between model_1 and model_2's output
+                # not to write general codes
+                dataset_name = extract_dataset_name(model_1_output_dict)
+                label_name = "_".join([dataset_name, "mean"])
+                standard_error_name = "_".join([dataset_name, "standard_error"])
+                output_output_loss = Gaussian_js_loss(
+                    model_1_output_dict[label_name], model_1_output_dict[standard_error_name],
+                    model_2_output_dict[label_name], model_2_output_dict[standard_error_name]
+                )
+                epoch = kwargs.get('epoch', 0)
+                if epoch < dataset_property['distill_start_epoch']:
+                    output_output_loss = 0
+            else:
+                output_output_loss = 0
             loss = output_gt_loss + output_output_loss
 
         output_dict = self._merge_output_dict(model_1_output_dict, model_2_output_dict)

@@ -27,7 +27,7 @@ def linear_softmax_layer(in_dim, out_dim):
 name_to_layer = {
     'linear': linear_layer,
     'normalize_sigmoid': normalize_sigmoid_layer,
-    'linear_softmax': linear_softmax_layer
+    'linear_softmax': linear_softmax_layer,
 }
 
 def create_last_layers(dataset_properties, in_dim):

@@ -7,7 +7,6 @@ import numpy as np
 import gc
 import math
 
-from util import to_device
 from tqdm import tqdm
 from torch.optim import Adam
 from optimizers.lamb import Lamb
@@ -78,17 +77,15 @@ def make_scheduler(optimizer, config, **kwargs):
 
 
 class Trainer:
-    def __init__(self, config, device, model_save_dir, fold=None):
+    def __init__(self, config, model_save_dir, fold=None):
         """
         config: argparse.Namespace.
             contain hyperparameter of training process.
-        device: torch.device
         model_save_dir: Path.
         fold: int. 
             current fold of k-fold. if is None, then the model is not trained in k-fold way.
         """
         self.config = config
-        self.device = device
         self.model_save_dir = model_save_dir
         self.fold = fold
 

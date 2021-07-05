@@ -10,6 +10,7 @@ key:
   train_method: "vanilla"
   scheduler_method: 'cosine'
   batch_size: 16
+  eval_batch_size: 32
   max_epoch: 10
   weight_decay: 0.01
   optimizer_name: "AdamW"

@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-from tqdm import tqdm
+from tqdm import tqdm, trange
 from sklearn.neighbors import KDTree
 
 class KNNHelper:
@@ -27,8 +27,13 @@ class KNNHelper:
     
     def predict(self, pred_emb, **kwargs):
         k = self.dataset_property['knn_k']
+        del_index = kwargs.get('del_index', None)
+        if del_index is not None:
+            k += 1
+
         dists, neighbors = self.kd_tree.query(pred_emb, k=k)
         pred_scores = self.scores[neighbors]
+
         extra_emb = kwargs.get('extra_emb', None)
         if extra_emb is not None:
             extra_score = kwargs['extra_score']
@@ -38,6 +43,14 @@ class KNNHelper:
                 if d > extra_dist:
                     dists[i, d] = extra_dist
                     pred_scores[i, d] = extra_score
+        
+        if del_index is not None:
+            rows, cols = np.where(neighbors == del_index)
+            for row, col in zip(rows, cols):
+                dists[row, col] = dists[row, -1]
+                pred_scores[row, col] = dists[row, -1]
+            np.delete(dists, -1, 1)
+            np.delete(pred_scores, -1, 1)
             
         dists = dists / np.sum(dists, axis=1, keepdims=True)
         pred_scores = np.sum(dists * pred_scores, axis=1)
@@ -54,3 +67,21 @@ class KNNHelper:
         old_diff = np.linalg.norm(gt_scores - old_pred_scores)
         new_diff = np.linalg.norm(gt_scores - new_pred_scores)
         return new_diff < old_diff
+    
+    def is_noise(self, index, k):
+        _, neighbors = self.kd_tree.query(self.last_embs[index].reshape(1, -1), k=k)
+        neighbors = neighbors[0]
+        embs = self.last_embs[neighbors]
+        gt_scores = self.scores[neighbors]
+        old_pred_scores = self.predict(embs)
+        new_pred_scores = self.predict(embs, del_index=index)
+        old_diff = np.linalg.norm(gt_scores - old_pred_scores)
+        new_diff = np.linalg.norm(gt_scores - new_pred_scores)
+        return new_diff < old_diff
+    
+    def find_noise_samples(self, k):
+        noise_samples = []
+        for index in trange(self.last_embs.shape[0]):
+            if self.is_noise(index, k):
+                noise_samples.append(index)
+        return noise_samples

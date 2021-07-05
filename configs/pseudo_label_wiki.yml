@@ -1,0 +1,11 @@
+seq_min_len: 150
+seq_max_len: 300
+pl_dataset_name: 'wikipedia'
+pl_dataset_param:
+  - '20200501.en'
+pl_split_names:
+  - 'train'
+pl_text_column: 'text'
+get_seq_method: 'vanilla'
+data_load_path: "../data/train_squad.csv"
+data_save_path: "../data/train_squad_wiki.csv"

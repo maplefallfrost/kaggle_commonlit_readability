@@ -42,5 +42,5 @@ key:
         - linear
         - linear
       distill_start_epoch: 1
-      # predict_method: 'knn'
-      # knn_k: 10
+      predict_method: 'knn'
+      knn_k: 10

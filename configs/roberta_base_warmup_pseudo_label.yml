@@ -4,12 +4,13 @@ key:
   model_type: "roberta"
   model_name: "roberta-base"
   embedding_method: "weight-pool"
-  checkpoint_dir: "./checkpoints/roberta_base_warmup_pseudo_label"
+  checkpoint_dir: "./checkpoints/roberta_base_warmup_pseudo_label_new"
   pretrained_dir: "./checkpoints/pretrained/roberta_base"
 
   train_method: "vanilla"
   scheduler_method: 'cosine_warmup'
   batch_size: 16
+  eval_batch_size: 32
   max_epoch: 5
   weight_decay: 0.01
   optimizer_name: "AdamW"
@@ -42,4 +43,4 @@ key:
         - linear
         - linear
       # predict_method: 'knn'
-      # knn_k: 4
+      # knn_k: 5

@@ -11,13 +11,13 @@ import pandas as pd
 from pathlib import Path
 from util import df_to_dict, load_config, load_state_dict
 from dataset import Collator, CommonLitDataset
-from constant import model_type_to_model
+from constant import model_type_to_model, data_split_type
 from transformers import AutoTokenizer
 from trainer import Trainer
 from constant import name_to_evaluator, name_to_dataset_class
 from models.data_parallel import DataParallelWrapper
 from data_loader import DataLoaderX
-from models.self_distill import SelfDistill
+from models.ensemble import EnsembleModel
 
 
 fitlog.set_log_dir('logs/')         # set the logging directory
@@ -61,8 +61,11 @@ def k_fold_train(config):
     valid_metrics = []
     for fold in range(config.k_fold):
         print(f"fold {fold} start")
-        train_index = df[df[f"fold{fold}"] == 0].index.tolist()
-        valid_index = df[df[f"fold{fold}"] == 2].index.tolist()
+        train_index = df[
+            (df[f"fold{fold}"] == data_split_type["train"]) | 
+            (df[f"fold{fold}"] == data_split_type["train_extra"])
+        ].index.tolist()
+        valid_index = df[df[f"fold{fold}"] == data_split_type["valid"]].index.tolist()
         train_dataset = name_to_dataset_class[commonlit_dataset_property['dataset_class_name']](
             dict_data=dict_data, 
             dataset_name=commonlit_dataset_property["name"],
@@ -84,18 +87,19 @@ def k_fold_train(config):
         valid_loader = DataLoaderX(
             device,
             dataset=valid_dataset,
-            batch_size=config.batch_size,
+            batch_size=config.eval_batch_size,
             shuffle=False,
             pin_memory=True,
+            num_workers=3,
             collate_fn=Collator(tokenizer.pad_token_id))
         
         model = model_type_to_model[config.model_type](config)
-        if not isinstance(model, SelfDistill):
+        if not isinstance(model, EnsembleModel):
             model = model.to(device)
         if config.gpu.find(",") != -1 and config.dp:
             model = DataParallelWrapper(model, device_ids=device_ids)
 
-        trainer = Trainer(config, device=device, model_save_dir=config.checkpoint_dir, fold=fold)
+        trainer = Trainer(config, model_save_dir=config.checkpoint_dir, fold=fold)
         valid_metric = trainer.train(model, [train_loader], valid_loader)
         valid_metrics.append(valid_metric)
     
@@ -128,8 +132,11 @@ def k_fold_eval(config):
     k_fold_metrics = []
     for fold in range(config.k_fold):
         print(f"fold {fold} start")
-        train_index = df[df[f"fold{fold}"] == 0].index.tolist()
-        valid_index = df[df[f"fold{fold}"] == 2].index.tolist()
+        train_index = df[
+            (df[f"fold{fold}"] == data_split_type["train"]) | 
+            (df[f"fold{fold}"] == data_split_type["train_extra"])
+        ].index.tolist()
+        valid_index = df[df[f"fold{fold}"] == data_split_type["valid"]].index.tolist()
         train_dataset = CommonLitDataset(dict_data=dict_data, 
             dataset_name=commonlit_dataset_property["name"],
             subset_index=train_index)
@@ -149,12 +156,12 @@ def k_fold_eval(config):
         valid_loader = DataLoaderX(
             device,
             dataset=valid_dataset,
-            batch_size=config.batch_size,
+            batch_size=config.eval_batch_size,
             shuffle=False,
             collate_fn=Collator(tokenizer.pad_token_id))
         
         model = model_type_to_model[config.model_type](config)
-        if not isinstance(model, SelfDistill):
+        if not isinstance(model, EnsembleModel):
             model = model.to(device)
 
         model_save_path = os.path.join(config.checkpoint_dir, f"model_{fold}.th")
