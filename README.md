@@ -65,6 +65,8 @@ python eda.py --mode=add_fold --config_path=configs/add_fold.yml
 
 ### MLM(Masked Language Model)预训练
 
+这步是将已有的预训练模型在自己的文本上接着做MLM的预训练，是个常用的能提升结果的技巧，一般来说加上比较好。
+
 example:
 
 python run_mlm_no_trainer.py --train_file=../data/train.csv --validation_file=../data/train.csv --model_name_or_path=roberta-base --output_dir=checkpoints/pretrained/roberta_base --per_device_train_batch_size=4 --gradient_accumulation_steps=1 --num_train_epochs=3
