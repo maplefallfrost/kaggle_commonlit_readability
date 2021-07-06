@@ -32,3 +32,25 @@
 - [ ] pseudo label
 - [ ] stochastic weight average
 - [ ] 超参数搜索(?)
+
+# 使用说明
+
+## 目录结构
+
+- project
+  - code(github项目)
+    - main.py
+    - ...
+  - data
+    - train_data.csv
+    - ...
+
+data放到别的地方也可以，可以在yml文件里dataset_properties的train_data_path中进行设定。
+
+## 安装
+
+pip install -r requirements.txt
+
+请注意requirements.txt里的torch版本可能需要根据自己服务器上的情况进行修改
+
+## 使用
