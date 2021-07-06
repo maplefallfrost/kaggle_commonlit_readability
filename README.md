@@ -50,3 +50,7 @@ data放到别的地方也可以，可以在yml文件里dataset_properties的trai
 ## 安装
 
 pip install -r requirements.txt
+
+请注意requirements.txt里的torch版本可能需要根据自己服务器上的情况进行修改
+
+## 使用
