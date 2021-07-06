@@ -15,7 +15,7 @@
 - [x] 损失函数
   - [x] MSE
   - [x] RMSE
-  - [x] Gaussian Kl divergence
+  - [x] Gaussian kl divergence
     - [x] 模型仅输出均值
     - [x] 模型同时输出均值和方差
 - [x] layerwise learning rate decay
@@ -28,8 +28,18 @@
   暂时因为网络问题没有提交结果
   
 - [ ] roberta-large模型
+  - 模型比base大4倍且训练不稳定，暂时放弃
 - [ ] 回归转分类
+  - [x] 硬标签
+  - [x] 软标签
+  - [ ] 分析输出分布以进行进一步预处理。 
 - [ ] pseudo label
+  - [ ] knn挑选伪标签
+    - [x] squad
+    - [ ] wiki
+    - [ ] 数据集来源网站的数据
+- [ ] 其他形式标注的数据
+  - [ ] multi task训练
 - [ ] stochastic weight average
 - [ ] 超参数搜索(?)
 
@@ -73,7 +83,7 @@ python run_mlm_no_trainer.py --train_file=../data/train.csv --validation_file=..
 
 修改model_name_or_path的参数来训练不同的模型。可选模型名：https://huggingface.co/transformers/pretrained_models.html
 
-output_dir参数自己设定。
+output_dir参数自己设定，该参数对应训练yaml文件中的pretrained_dir，请确保一致。
 
 根据模型的大小可能需要调整per_device_train_batch_size和gradient_accumulation_steps参数。
   - actual_batch_size = per_device_train_batch_size x gradient_accumulation_steps
