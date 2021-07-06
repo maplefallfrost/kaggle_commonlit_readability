@@ -1,0 +1,6 @@
+key:
+  data_load_path: "../data/train.csv"
+  data_save_path: "../data/train_with_fold.csv"
+  k_fold: 5
+  rng_seed: 0
+
