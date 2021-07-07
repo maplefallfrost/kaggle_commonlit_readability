@@ -80,6 +80,9 @@ class EnsembleModel(BaseModel):
     def _merge_output_dict(self, model_1_output_dict, model_2_output_dict):
         output_dict = dict()
         for key in model_1_output_dict:
-            output_dict[key] = 0.5 * (model_1_output_dict[key] + model_2_output_dict[key])
+            if key.find("last_emb") != -1:
+                output_dict[key] = torch.cat([model_1_output_dict[key], model_2_output_dict[key]], dim=1)
+            else:
+                output_dict[key] = 0.5 * (model_1_output_dict[key] + model_2_output_dict[key])
         return output_dict
     

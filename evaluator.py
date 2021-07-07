@@ -24,17 +24,16 @@ class RMSE_Evaluator:
             knn_helper = KNNHelper(model, train_loader, dataset_property)
             kwargs['knn_helper'] = knn_helper
 
-        dataset_name = dataset_property['name']
         rmse, num_sample = 0, 0
         for collate_batch in tqdm(valid_loader):
-            with torch.no_grad():
-                pred = model.predict(collate_batch, dataset_property, **kwargs)
-            labels = collate_batch[f"{dataset_name}_mean"].cpu().numpy()
-            rmse += self._eval_batch(pred, labels)
-            num_sample += pred.shape[0]
+            batch_dif = self.batch_dif(model, collate_batch, dataset_property, **kwargs)
+            rmse += np.sum(batch_dif ** 2)
+            num_sample += batch_dif.size
         rmse = np.sqrt(rmse / num_sample)
         return rmse
     
-    def _eval_batch(self, pred, labels):
-        dif = pred - labels
-        return np.sum(dif ** 2)
+    def batch_dif(self, model, collate_batch, dataset_property, **kwargs):
+        with torch.no_grad():
+            pred = model.predict(collate_batch, dataset_property, **kwargs)
+        labels = collate_batch[f"{dataset_property['name']}_mean"].cpu().numpy()
+        return pred - labels
