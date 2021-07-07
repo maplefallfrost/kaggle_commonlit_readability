@@ -44,7 +44,6 @@ def k_fold_train(config):
         device_ids = [int(x) for x in config.gpu.split(",")]
     # Note that the setting of commonlit dataset should be always put in the first in the config.yml.
     commonlit_dataset_property = config.dataset_properties[0]
-    df = pd.read_csv(commonlit_dataset_property["train_data_path"])
 
     if os.path.exists(config.checkpoint_dir):
         flag = input(f"{config.checkpoint_dir} exists. Do you want to overwrite it?(y/n)")
@@ -56,42 +55,9 @@ def k_fold_train(config):
     tokenizer = AutoTokenizer.from_pretrained(config.model_name)
     tokenizer.save_pretrained(config.checkpoint_dir)
 
-    dict_data = df_to_dict(df, tokenizer, text_column=commonlit_dataset_property["text_column"])
-
     valid_metrics = []
     for fold in range(config.k_fold):
         print(f"fold {fold} start")
-        train_index = df[
-            (df[f"fold{fold}"] == data_split_type["train"]) | 
-            (df[f"fold{fold}"] == data_split_type["train_extra"])
-        ].index.tolist()
-        valid_index = df[df[f"fold{fold}"] == data_split_type["valid"]].index.tolist()
-        train_dataset = name_to_dataset_class[commonlit_dataset_property['dataset_class_name']](
-            dict_data=dict_data, 
-            dataset_name=commonlit_dataset_property["name"],
-            subset_index=train_index)
-        valid_dataset = CommonLitDataset(dict_data=dict_data, 
-            dataset_name=commonlit_dataset_property["name"],
-            subset_index=valid_index)
-
-        train_loader = DataLoaderX(
-            device,
-            dataset=train_dataset,
-            batch_size=config.batch_size,
-            shuffle=True,
-            collate_fn=Collator(tokenizer.pad_token_id),
-            pin_memory=True,
-            drop_last=True,
-            num_workers=3)
-           
-        valid_loader = DataLoaderX(
-            device,
-            dataset=valid_dataset,
-            batch_size=config.eval_batch_size,
-            shuffle=False,
-            pin_memory=True,
-            num_workers=3,
-            collate_fn=Collator(tokenizer.pad_token_id))
         
         model = model_type_to_model[config.model_type](config)
         if not isinstance(model, EnsembleModel):
@@ -99,8 +65,8 @@ def k_fold_train(config):
         if config.gpu.find(",") != -1 and config.dp:
             model = DataParallelWrapper(model, device_ids=device_ids)
 
-        trainer = Trainer(config, model_save_dir=config.checkpoint_dir, fold=fold)
-        valid_metric = trainer.train(model, [train_loader], valid_loader)
+        trainer = Trainer(config, tokenizer, device)
+        valid_metric, _ = trainer.train(model, fold=fold)
         valid_metrics.append(valid_metric)
     
     mean_valid_metric = np.mean(valid_metrics)

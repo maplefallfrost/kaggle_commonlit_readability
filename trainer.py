@@ -2,11 +2,14 @@ import sys
 import torch
 import fitlog
 import os
-import torch.optim as optim
-import numpy as np
 import gc
 import math
+import torch.optim as optim
+import numpy as np
+import pandas as pd
 
+from data_loader import DataLoaderX
+from dataset import Collator, CommonLitDataset
 from tqdm import tqdm
 from torch.optim import Adam
 from optimizers.lamb import Lamb
@@ -15,8 +18,8 @@ from transformers import (
     get_linear_schedule_with_warmup,
     get_cosine_schedule_with_warmup
 )
-from constant import name_to_evaluator
-from util import AverageMeter
+from constant import name_to_evaluator, name_to_dataset_class, data_split_type
+from util import AverageMeter, df_to_dict
 
 
 def get_optimizer_grouped_parameters(model, weight_decay):
@@ -76,32 +79,114 @@ def make_scheduler(optimizer, config, **kwargs):
     return scheduler
 
 
+def make_dataset(dataset_property, dict_data, subset_index):
+    dataset = name_to_dataset_class[dataset_property["name"]](
+        dict_data=dict_data,
+        dataset_name=dataset_property["name"],
+        subset_index=subset_index
+    )
+    return dataset
+
+
+def make_dataloader(dataset, config, tokenizer, device, is_train):
+    if is_train:
+        kwargs = {
+            'batch_size': config.batch_size,
+            'shuffle': True,
+            'drop_last': True,
+            'num_workers': 4
+        }
+    else:
+        if hasattr(config, "eval_batch_size"):
+            eval_batch_size = config.eval_batch_size
+        else:
+            eval_batch_size = config.batch_size
+        kwargs = {
+            'batch_size': eval_batch_size,
+            'shuffle': False,
+        }
+    return DataLoaderX(
+        device,
+        dataset=dataset,
+        collate_fn=Collator(tokenizer.pad_token_id),
+        pin_memory=True,
+        **kwargs
+    )
+
+
 class Trainer:
-    def __init__(self, config, model_save_dir, fold=None):
+    def __init__(self, config, tokenizer, device):
         """
         config: argparse.Namespace.
             contain hyperparameter of training process.
-        model_save_dir: Path.
-        fold: int. 
-            current fold of k-fold. if is None, then the model is not trained in k-fold way.
+        tokenizer: Tokenizer in huggingface.
+        device: torch.device
         """
         self.config = config
-        self.model_save_dir = model_save_dir
-        self.fold = fold
+        self.tokenizer = tokenizer
+        self.device = device
 
-    def train(self, model, train_loaders, valid_loader):
+        self.name_to_df = {}
+        self.name_to_dict_data = {}
+        for dataset_property in self.config.dataset_properties:
+            df = pd.read_csv(dataset_property["train_data_path"])
+            self.name_to_df[dataset_property['name']] = df
+            dict_data = df_to_dict(df, self.tokenizer, text_column=dataset_property["text_column"])
+            self.name_to_dict_data[dataset_property['name']] = dict_data
+
+    def train(self, model, fold=None):
         """
         model: nn.Module.
-        train_loaders: list[DataLoader].
-        valid_loader: DataLoader.
         """
+        self.fold = fold
+        name_to_data_loader = dict()
+        for dataset_property in self.config.dataset_properties:
+            df = self.name_to_df[dataset_property['name']]
+            all_train_index = df[
+                (df[f"fold{fold}"] == data_split_type["train"]) | 
+                (df[f"fold{fold}"] == data_split_type["train_extra"])
+            ].index.tolist()
+            dict_data = self.name_to_dict_data[dataset_property['name']]
+            dataset = make_dataset(dataset_property, dict_data, all_train_index)
+            data_loader = make_dataloader(dataset, self.config, self.tokenizer, self.device, is_train=True)
+            name_to_data_loader[dataset_property['name']] = data_loader
+        
+        commonlit_dataset_property = self.config.dataset_properties[0]
+        df = self.name_to_df[commonlit_dataset_property['name']]
+        valid_index = df[df[f"fold{fold}"] == data_split_type["valid"]].index.tolist()
+        valid_dataset = CommonLitDataset(dict_data=dict_data,
+            dataset_name=commonlit_dataset_property['name'],
+            subset_index=valid_index)
+        valid_loader = make_dataloader(valid_dataset, self.config, self.tokenizer, self.device, is_train=False)
+
         if self.config.train_method == 'vanilla':
-            return self._vanilla_train(model,
-                        train_loaders[0],
+            return self._train_core(model,
+                        name_to_data_loader[commonlit_dataset_property['name']],
                         valid_loader, 
                         self.config.dataset_properties[0])
-    
-    def _vanilla_train(self, model, train_loader, valid_loader, dataset_property):
+        elif self.config.train_method == 'clean_finetune':
+            clean_train_index = df[df[f"fold{fold}"] == data_split_type["train"]].index.tolist()
+            dict_data = self.name_to_dict_data[commonlit_dataset_property['name']]
+            dataset = make_dataset(dataset_property, dict_data, clean_train_index)
+            data_loader = make_dataloader(dataset, self.config, self.tokenizer, self.device, is_train=True)
+
+            best_valid_metric, global_step = self._train_core(model,
+                name_to_data_loader[commonlit_dataset_property['name']],
+                valid_loader, 
+                self.config.dataset_properties[0]
+            )
+
+            for key, val in self.config.finetune_config.items():
+                setattr(self.config, key, val)
+            
+            print("clean finetune start")
+            return self._train_core(model, data_loader, valid_loader, commonlit_dataset_property,
+                global_step=global_step, best_valid_metric=best_valid_metric)
+
+
+    def _train_core(self, model, train_loader, valid_loader, dataset_property,
+        global_step=0,
+        best_valid_metric=np.inf):
         """
         This training method does the vanilla training method of single dataset.
         Input
@@ -122,7 +207,6 @@ class Trainer:
         evaluator = name_to_evaluator[dataset_property['evaluator']]()
         losses = AverageMeter()
 
-        global_step, best_valid_metric = 0, np.inf
         num_update_steps_per_epoch = math.ceil(len(train_loader) / self.config.gradient_accumulation_steps)
         max_train_steps = self.config.max_epoch * num_update_steps_per_epoch
         progress_bar = tqdm(range(max_train_steps))
@@ -156,11 +240,11 @@ class Trainer:
                     if valid_metric < best_valid_metric:
                         best_valid_metric = valid_metric
                         fitlog.add_best_metric({f"valid_{self.fold}": {dataset_property['evaluator']: valid_metric}})
-                        torch.save(model.state_dict(), os.path.join(self.model_save_dir, f"model_{self.fold}.th"))
+                        torch.save(model.state_dict(), os.path.join(self.config.checkpoint_dir, f"model_{self.fold}.th"))
 
         print(f"best validation metric: {best_valid_metric}")
         torch.cuda.empty_cache()
         del model, optimizer, scheduler, train_loader, valid_loader
         gc.collect()
 
-        return best_valid_metric
+        return best_valid_metric, global_step
