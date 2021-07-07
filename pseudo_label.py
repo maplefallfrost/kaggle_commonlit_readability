@@ -35,6 +35,7 @@ def update_new_sample(sample_dict, text, target, standard_error, fold, k_fold):
         else:
             sample_dict[f"fold{k}"].append(data_split_type["no_use"])
 
+
 def pseudo_label(config):
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     config_json_path = os.path.join(config.checkpoint_dir, "config.json")
@@ -42,10 +43,7 @@ def pseudo_label(config):
         os.rename(os.path.join(config.checkpoint_dir, "tokenizer_config.json"), config_json_path)
     tokenizer = AutoTokenizer.from_pretrained(config.checkpoint_dir)
 
-    pl_args = []
-    if hasattr(config, "pl_dataset_param"):
-        pl_args = config.pl_dataset_param
-    pl_dataset = load_dataset(config.pl_dataset_name, *pl_args)
+    pl_dataset = load_dataset(*config.load_dataset_args, **config.load_dataset_kwargs)
 
     commonlit_dataset_property = config.dataset_properties[0]
 
@@ -110,7 +108,7 @@ def pseudo_label(config):
                         new_text_std = np.exp(new_text_std)
                         update_new_sample(new_sample_dict, text, new_text_score, new_text_std, fold, config.k_fold)
             
-        print(f"count: {count}. conf count: {conf_count}")
+        print(f"count: {count}. confidence count: {conf_count}")
 
     new_sample_df = pd.DataFrame.from_dict(new_sample_dict)
     merge_df = pd.concat([df, new_sample_df], axis=0, ignore_index=True)
@@ -174,7 +172,7 @@ if __name__ == '__main__':
     model_config = load_config(args.config_path)['key']
     pl_config = dict()
     if args.pl_config_path is not None:
-        pl_config = load_config(args.pl_config_path)
+        pl_config = load_config(args.pl_config_path)['key']
     config = argparse.Namespace(**{**model_config, **pl_config})
     
     config.gpu = args.gpu
