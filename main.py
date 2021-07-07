@@ -119,10 +119,11 @@ def k_fold_eval(config):
             pin_memory=True,
             num_workers=3)
 
+        eval_batch_size = config.eval_batch_size if hasattr(config, "eval_batch_size") else config.batch_size
         valid_loader = DataLoaderX(
             device,
             dataset=valid_dataset,
-            batch_size=config.eval_batch_size,
+            batch_size=eval_batch_size,
             shuffle=False,
             collate_fn=Collator(tokenizer.pad_token_id))
         
