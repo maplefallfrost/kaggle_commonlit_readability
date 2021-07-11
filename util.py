@@ -59,7 +59,11 @@ def df_to_dict(df, tokenizer, text_column):
 def to_device(collate_batch, device):
     device_batch = dict()
     for key in collate_batch:
-        device_batch[key] = collate_batch[key].to(device, non_blocking=True)
+        if isinstance(collate_batch[key], torch.Tensor):
+            # device_batch[key] = collate_batch[key].to(device, non_blocking=True)
+            device_batch[key] = collate_batch[key].to(device)
+        else:
+            device_batch[key] = collate_batch[key]
     return device_batch
     
 
