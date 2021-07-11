@@ -8,9 +8,9 @@ key:
   pretrained_dir: "./checkpoints/pretrained/roberta_base"
 
   train_method: "vanilla"
-  scheduler_method: 'cosine'
+  scheduler_method: 'cosine_warmup'
   batch_size: 16
-  max_epoch: 10
+  max_epoch: 5
   weight_decay: 0.01
   optimizer_name: "AdamW"
   lr: 5e-5

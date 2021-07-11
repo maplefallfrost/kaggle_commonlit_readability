@@ -1,0 +1,15 @@
+key:
+  seq_min_len: 150
+  seq_max_len: 300
+  load_dataset_args:
+    - 'json'
+  load_dataset_kwargs:
+    data_files: "../extra_data/simple_wiki/dataset.json"
+
+  pl_text_column: 'text'
+  pl_split_names:
+    - 'train'
+  get_seq_method: 'vanilla'
+  data_load_path: "../data/train_weebit_squad.csv"
+  data_save_path: "../data/train_simplewiki_weebit_squad.csv"
+  eval_batch_size: 16

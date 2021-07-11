@@ -1,0 +1,16 @@
+key:
+  seq_min_len: 150
+  seq_max_len: 300
+  load_dataset_args:
+    - 'csv'
+  load_dataset_kwargs:
+    data_files: "../extra_data/weebit/weebit_reextracted.tsv"
+    delimiter: '\t'
+
+  pl_text_column: 'text'
+  pl_split_names:
+    - 'train'
+  get_seq_method: 'vanilla'
+  data_load_path: "../data/train_squad.csv"
+  data_save_path: "../data/train_squad_weebit_new.csv"
+  eval_batch_size: 16

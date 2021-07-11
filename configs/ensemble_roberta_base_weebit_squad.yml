@@ -1,28 +1,23 @@
 key:
   k_fold: 5
   rng_seed: 0
-  model_type: "roberta"
+  model_type: "self-distill"
   model_name: "roberta-base"
   embedding_method: "weight-pool"
-  checkpoint_dir: "./checkpoints/debug"
+  checkpoint_dir: "./checkpoints/ensemble_roberta_base_weebit_squad"
   pretrained_dir: "./checkpoints/pretrained/roberta_base"
 
-  train_method: "clean_finetune"
-  finetune_config:
-    max_epoch: 2
-    lr: 2e-5
-    scheduler_method: 'cosine'
-
-  scheduler_method: 'cosine'
+  train_method: "vanilla"
+  scheduler_method: 'cosine_warmup'
   batch_size: 16
-  eval_batch_size: 32
-  max_epoch: 1
+  max_epoch: 5
   weight_decay: 0.01
   optimizer_name: "AdamW"
   lr: 5e-5
+  warmup_steps: 0
   embedding_layer_start: 9
-  warmup_proportion: 0.1
   gradient_accumulation_steps: 1
+  warmup_proportion: 0.1
   model_config_dict:
     hidden_dropout_prob: 0.0
     attention_probs_dropout_prob: 0.0
@@ -47,3 +42,6 @@ key:
       last_layers:
         - linear
         - linear
+      distill_start_epoch: 5
+      predict_method: 'knn'
+      knn_k: 10
