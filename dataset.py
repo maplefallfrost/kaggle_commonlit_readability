@@ -32,7 +32,8 @@ class Collator:
                 collate_batch['attention_mask'] = attention_mask
             else:
                 collate_data = [x[key] for x in batch]
-                collate_data = torch.Tensor(collate_data)
+                if not isinstance(collate_data[0], str):
+                    collate_data = torch.Tensor(collate_data)
             collate_batch[key] = collate_data
         
         return collate_batch
@@ -57,6 +58,7 @@ class CommonLitDataset:
             index = self.subset_index[index]
 
         sample = {
+            # f'{self.dataset_name}_id': self.dict_data['id'][index],
             f'{self.dataset_name}_token_ids': self.dict_data['text'][index],
             f'{self.dataset_name}_mean': self.dict_data['target'][index],
             f'{self.dataset_name}_standard_error': self.dict_data['standard_error'][index]
